@@ -8,3 +8,4 @@ project ("Testing")
 # Include sub-projects.
 add_subdirectory ("Performance")
 add_subdirectory ("BinarySearch")
+add_subdirectory ("LUTBenchmark")
