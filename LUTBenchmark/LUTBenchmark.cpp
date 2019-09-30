@@ -12,482 +12,705 @@
 #include <unordered_map>
 #include <utility>
 #include <vector>
+#include <array>
 
 class A {
 public:
-    A() : id_(0) {}
-    A(uint32_t id) : id_(id) {}
-    uint32_t getId() const { return id_; }
+	A() : id_(0) {}
+	A(uint32_t id) : id_(id) {}
+	uint32_t GetId() const { return id_; }
 
-    uint32_t id_;
-    uint64_t id1_;
-    uint64_t id2_;
-    uint64_t id3_;
-    uint64_t id4_;
+	uint32_t id_;
+	uint64_t id1_;
+	uint64_t id2_;
+	uint64_t id3_;
+	std::array<uint64_t, 1> id4_;
 };
 
 class VectorSearchFixture : public benchmark::Fixture {
 public:
-    void SetUp(const ::benchmark::State& state)
-    {
-        records_ = std::vector<A>(state.range_x());
-        searches_ = std::vector<uint32_t>(state.range_x(), 0);
-        benchmark::DoNotOptimize(records_.data());
-        benchmark::DoNotOptimize(searches_.data());
-        std::mt19937 rng;
-        rng.seed(std::random_device()());
-        std::uniform_int_distribution<uint32_t> uniform_dist(0, state.range_x());
+	void SetUp(const ::benchmark::State& state)
+	{
+		//std::cout << searches_.size() << std::endl;
+		records_ = std::vector<A*>(state.range_x());
+		//searches_ = std::vector<uint32_t>(state.range_x(), 0);
+		benchmark::DoNotOptimize(records_.data());
+		
 
-        for (int64_t i = state.range_x() - 1; i >= 0; --i) {
-            records_[i] = (i + 65536);
-            searches_[i] = uniform_dist(rng);
-        }
-    }
+		for (int64_t i = state.range_x() - 1; i >= 0; --i) {
+			records_[i] = new A(i + i + 65535);
+		}
 
-    void TearDown(const ::benchmark::State& state)
-    {
-        for (auto item : records_) {
-            //delete item;
-        }
-        records_.clear();
-    }
+		if (searches_.size() < state.range_x()) {
+			uint32_t strt = std::max<uint32_t>(searches_.size(), 1);
+			searches_.resize(state.range_x(), 0);
+			benchmark::DoNotOptimize(searches_.data());
+			std::mt19937 rng;
+			rng.seed(std::random_device()());
+			std::uniform_int_distribution<uint32_t> uniform_dist(65536 + strt, searches_.size() * 2 + 65536);
+			//for (int64_t i = searches_.size(); i > strt; ) {
+				for (int64_t i = searches_.size(), j = strt; i > j && i > strt; --i) {
+					searches_[i] = uniform_dist(rng) % (j * 16);
+				}
+			//}
+		}
+//		for (auto e : searches_) {
+	//		std::cout << e << std::endl;
+		//}
+	}
 
-//    private:
-    std::vector<A> records_;
-    std::vector<uint32_t> searches_;
+	void TearDown(const ::benchmark::State& state)
+	{
+		for (auto item : records_) {
+			delete item;
+		}
+		records_.clear();
+	}
+
+	//    private:
+	//std::vector<std::vector<A*>, >
+	std::vector<A*> records_;
+	std::vector<uint32_t> searches_;
 };
 
 enum locate_t { EQUAL, LEFT, RIGHT };
 
-int nary_search(const std::vector<A>& a, int const key, int const N)
+int nary_search(const std::vector<A*>& a, int const key, int const N)
 {
-    std::vector<int> mid(N + 1);
-    std::vector<locate_t> locate(N + 2);
+	std::vector<int> mid(N + 1);
+	std::vector<locate_t> locate(N + 2);
 
-    locate[0] = RIGHT;
-    locate[N + 1] = LEFT;
+	locate[0] = RIGHT;
+	locate[N + 1] = LEFT;
 
-    int lo = 0;
-    int hi = a.size() - 1;
-    int pos = -1;
+	int lo = 0;
+	int hi = a.size() - 1;
+	int pos = -1;
 
-    while (lo <= hi && pos == -1) {
-        mid[0] = lo - 1;
+	while (lo <= hi && pos == -1) {
+		mid[0] = lo - 1;
 
-        double const step = (hi - lo + 1) / (N + 1);
+		double const step = (hi - lo + 1) / (N + 1);
 
-        for (int i = 1; i <= N; i++) {
-            int const offset = step * i + (i - 1);
-            int const lmid = mid[i] = lo + static_cast<int>(offset);
+		for (int i = 1; i <= N; i++) {
+			int const offset = step * i + (i - 1);
+			int const lmid = mid[i] = lo + static_cast<int>(offset);
 
-            if (lmid <= hi) {
-                if (a[lmid].id_ > key) {
-                    locate[i] = LEFT;
-                } else if (a[lmid].id_ < key) {
-                    locate[i] = RIGHT;
-                } else {
-                    locate[i] = EQUAL;
-                    pos = lmid;
-                }
-            } else {
-                mid[i] = hi + 1;
-                locate[i] = LEFT;
-            }
-        }
-        for (int i = 1; i <= N; i++) {
-            if (locate[i] != locate[i - 1]) {
-                lo = mid[i - 1] + 1;
-                hi = mid[i] - 1;
-            }
-        }
-        if (locate[N] != locate[N + 1]) {
-            lo = mid[N] + 1;
-        }
-    }
-    return pos;
+			if (lmid <= hi) {
+				if (a[lmid]->id_ > key) {
+					locate[i] = LEFT;
+				}
+				else if (a[lmid]->id_ < key) {
+					locate[i] = RIGHT;
+				}
+				else {
+					locate[i] = EQUAL;
+					pos = lmid;
+				}
+			}
+			else {
+				mid[i] = hi + 1;
+				locate[i] = LEFT;
+			}
+		}
+		for (int i = 1; i <= N; i++) {
+			if (locate[i] != locate[i - 1]) {
+				lo = mid[i - 1] + 1;
+				hi = mid[i] - 1;
+			}
+		}
+		if (locate[N] != locate[N + 1]) {
+			lo = mid[N] + 1;
+		}
+	}
+	return pos;
 }
 
 
-int binary_cmov(const std::vector<A>& records, uint32_t rid)
+int binary_cmov(const std::vector<A*>& records, uint32_t rid)
 {
-    size_t min = 0, max = records.size();
-    while (min < max) {
-        size_t middle = (min + max) >> 1;
-        //middle /= 2;
-        auto val = records[middle].id_;
-        min = rid > val ? middle + 1 : min;
-        max = rid > val ? max : middle;
-    }
-    return min;
+	size_t min = 0, max = records.size();
+	while (min < max) {
+		size_t middle = (min + max) >> 1;
+		//middle /= 2;
+		auto val = records[middle]->id_;
+		min = rid > val ? middle + 1 : min;
+		max = rid > val ? max : middle;
+	}
+	return min;
 }
 
-int binary_cmov2(std::vector<A>& const records, uint32_t const rid)
+int binary_cmov2(const std::vector<A*>& records, uint32_t const rid)
 {
-    size_t min = 0, max = records.size();
-    while (min < max) {
-        size_t middle = (min + max) >> 1;
-        size_t middle1 = middle + 1;
-        min = rid > records[middle].id_ ? middle1 : min;
-        max = rid <= records[middle].id_ ? middle : max;
-    }
-    return min;
+	size_t min = 0, max = records.size();
+	while (min < max) {
+		size_t middle = (min + max) >> 1;
+		size_t middle1 = middle + 1;
+		min = rid > records[middle]->id_ ? middle1 : min;
+		max = rid <= records[middle]->id_ ? middle : max;
+	}
+	return min;
 }
 
-size_t b2search(std::vector<A>& const records, uint32_t const rid)
+size_t b2search(const std::vector<A*>& records, uint32_t const rid)
 {
-    size_t size = records.size();
-    size_t low = 0;
-    //size_t middle;
-    while (size_t half = size >> 1) {
-        size_t middle = low + half;
-        auto val = records[middle].id_;
-        low = (val <= rid) ? middle : low;
-        size = size - half;
-    }
-    return (size && records[low].id_ == rid) ? low : -1;
-}
-
-inline size_t bb2search(std::vector<A> const& records, uint32_t const rid, size_t low, size_t high)
-{
-    while (size_t half = high >> 1) {
-        size_t middle = low + half;
-        auto val = records[middle].id_;
-        low = (val <= rid) ? middle : low;
-        high = high - half;
-    }
-    return (high && records[low].id_ == rid) ? low : -1;
+	size_t size = records.size();
+	size_t low = 0;
+	while (size_t half = size >> 1) {
+		size_t middle = low + half;
+		//auto val = records[middle]->id_;
+		low = (records[middle]->GetId() <= rid) ? middle : low;
+		size = size - half;
+	}
+	return (size && records[low]->id_ == rid) ? low : -1;
 }
 
 
-int lsearch(const std::vector<A>& records, uint32_t key)
+int lsearch(const std::vector<A*>& records, uint32_t key)
 {
-    for (size_t i = 0; i < records.size(); i++) {
-        if (records[i].id_ == key) {
-            return i;
-        }
-    }
-    return -1;
+	for (size_t i = 0; i < records.size(); i++) {
+		if (records[i]->id_ == key) {
+			return i;
+		}
+	}
+	return -1;
+}
+struct Comp
+{
+	inline bool operator() ( const A* s, uint32_t i ) const noexcept { return s->GetId() < i; }
+	inline bool operator() ( uint32_t i, const A* s ) const noexcept { return i < s->GetId(); }
+};
+
+namespace qb {
+
+template <class ForwardIt, class T>
+inline ForwardIt branch_less_binary_find_n(ForwardIt first, size_t size, const T& key)
+{
+	using difference_type = std::iterator_traits<ForwardIt>::difference_type;
+
+	while (difference_type half = size >> 1)
+	{
+		ForwardIt middle = first;
+		std::advance(middle, half);
+		if (!((*middle)->GetId() > key)) {
+			std::advance(first, half);
+		}
+		size = size - half;
+	}
+	return first;
 }
 
-inline size_t bbsearch(std::vector<A> const& resource, uint32_t key, size_t low, size_t high)
+
+template< class ForwardIt, class T>
+inline ForwardIt branch_full_binary_find_n(ForwardIt first, ForwardIt last, size_t size, const T& key)
 {
-    size_t ind = -1;
-    size_t mid = high >> 1;
+	using difference_type = std::iterator_traits<ForwardIt>::difference_type;
+	difference_type half = std::distance(first, last) >> 1;
+	ForwardIt middle = std::next(first, half);
 
-    while (low < high) {
-        //size_t mid = (low + high) >> 1;
-        auto val = resource[mid].id_;
+	while (first < last)
+	{
+		auto val = (*middle)->GetId();
 
-        if (key > val) {
-            low = mid + 1;
-        } else {
-            if (key == val) {
-                ind = mid;
-                break;
-            }
-            high = mid;
-        }
-        mid = (low + high) >> 1; 
-    }
-    return ind;
+		if (key > val)
+		{
+			first = middle;
+			std::advance(first, 1);
+		}
+		else
+		{
+			last = middle;
+			if (key == val)
+			{
+				//ind = middle;
+				break;
+			}
+		}
+		half = std::distance(first, last) >> 1;
+		middle = first;
+		std::advance(middle, half);
+	}
+	return last;
 }
 
-size_t bsearch(const std::vector<A>& data, uint32_t const key)
+template<class ForwardIt, class T>
+inline ForwardIt equal_range(ForwardIt first, ForwardIt last, const T& key)
 {
-    size_t low = 0;
-    
+	using difference_type = std::iterator_traits<ForwardIt>::difference_type;
+	difference_type size = std::distance(first, last);
+	return (size == 0) ? last : size < 0x8FFFF
+		? branch_less_binary_find_n(first, size, key)
+		: branch_full_binary_find_n(first, last, size, key);
+}
+
+};
+
+
+size_t combine_search(std::vector<A*> const& data, uint32_t const key)
+{
+	auto ind = qb::equal_range(std::cbegin(data), std::cend(data), key);
+		//auto ind = std::lower_bound(std::cbegin(data), std::cend(data), key,
+		//	[](const auto& lhs, const auto& i) -> bool { return lhs->GetId() < i; });
+		//: btsearch(std::cbegin(data), std::cend(data), rid);
+	return (ind != std::cend(data) && !((*ind)->GetId() < key) && !((*ind)->GetId() > key)) ? std::distance(std::cbegin(data), ind) : -1;
+	//auto ind = std::partition_point(std::cbegin(data), std::cend(data),
+	//		[=](const auto& lhs) -> bool { return lhs->GetId() < rid; });
+	//return (ind != std::cend(data) && (*ind)->GetId() == rid )? std::distance(std::cbegin(data), ind) : -1;
+
+}
+
+size_t bsearch(const std::vector<A*>& data, uint32_t const key)
+{
+	size_t low = 0;
+
 	size_t high = data.size();
-    size_t ind = -1;
-    size_t mid = high >> 1;
+	size_t ind = -1;
+	size_t mid = high >> 1;
 
-    while (low < high) {
-        const auto val = data[mid].id_;
-        if (key > val) {
-            low = mid + 1;
-        } else {
-            if (key == val) {
-                ind = mid;
-                break;
-            }
-            high = mid;
-        }
-        mid = (low + high) >> 1;
-    }
-    return ind;
+	while (low < high) {
+		const auto val = data[mid]->GetId();
+		if (key > val) {
+			low = mid + 1;
+		} else {
+			if (key == val) {
+				ind = mid;
+				break;
+			}
+			high = mid;
+		}
+		mid = (low + high) >> 1;
+	}
+	return ind;
 }
 
 
-// size_t bsearch(const std::vector<A>& data, uint32_t const key) { return bbsearch(data, key, 0, data.size()); }
+// size_t bsearch(const std::vector<A*>& data, uint32_t const key) { return bbsearch(data, key, 0, data.size()); }
 
-size_t fallback_bsearch(const std::vector<A>& data, uint32_t key)
+size_t fallback_bsearch(const std::vector<A*>& data, uint32_t key)
 {
-    size_t low = 0;
-    size_t high = data.size();
-    size_t mid = high >> 1;
-    // size_t ind = -1;
-    size_t size = high;
-    while (size > 0xFF) {
-        // auto mid = (low + high) >> 1;
-        auto val = data[mid].id_;
-        if (key > val) {
-            low = mid + 1;
-        } else {
-            if (key == val) {
-                return mid;
-                // low = high = mid;
-                // break;
-            }
-            high = mid;
-        }
-        mid = (low + high) >> 1;
-        size = high - low;
-    }
-    return bbsearch(data, key, low, high);
+	size_t low = 0;
+	size_t high = data.size();
+	size_t mid = high >> 1;
+	// size_t ind = -1;
+	size_t size = high;
+	while (size > 0xFF) {
+		// auto mid = (low + high) >> 1;
+		auto val = data[mid]->id_;
+		if (key > val) {
+			low = mid + 1;
+		}
+		else {
+			if (key == val) {
+				return mid;
+				// low = high = mid;
+				// break;
+			}
+			high = mid;
+		}
+		mid = (low + high) >> 1;
+		size = high - low;
+	}
+	return -1;
+	//return bsearch(data, key, low, high);
 }
 
-size_t combine_search(std::vector<A> const& data, uint32_t const rid)
+size_t b2search_original(const std::vector<A*>& records, uint32_t rid)
 {
-    return (data.size() > 0xFFFFFull) ? bbsearch(data, rid, 0ull, data.size()) : bb2search(data, rid, 0ull, data.size());
-}
+	int64_t numrecs = records.size();
+	int64_t foundindex = -1;
+	int64_t a = 0;
+	int64_t z = numrecs - 1;
+	int64_t k;
+	uint32_t id;
 
-size_t b2search_original(const std::vector<A>& records, uint32_t rid)
-{
-    int64_t numrecs = records.size();
-    int64_t foundindex = -1;
-    int64_t a = 0;
-    int64_t z = numrecs - 1;
-    int64_t k;
-    uint32_t id;
+	if (numrecs == 0)
+		return records.size();
+	while (a < z) {
+		k = a + ((z - a) >> 1);
 
-    if (numrecs == 0)
-        return records.size();
-    while (a < z) {
-        k = a + ((z - a) >> 1);
+		id = records[k]->id_;
 
-        id = records[k].id_;
+		if (id > rid) {
+			z = k;
+		}
+		else if (id < rid) {
+			a = k + 1;
+		}
+		else {
+			foundindex = k;
+			break;
+		}
 
-        if (id > rid) {
-            z = k;
-        } else if (id < rid) {
-            a = k + 1;
-        } else {
-            foundindex = k;
-            break;
-        }
-        
-           if (z - a <= 1) {
-               if (a == 0 && records[a].id_ == rid)
-                   foundindex = a;
-               if (z == numrecs - 1 && records[z].id_ == rid)
-                   foundindex = z;
-               break;
-           }
-          
-    }
+		if (z - a <= 1) {
+			if (a == 0 && records[a]->id_ == rid)
+				foundindex = a;
+			if (z == numrecs - 1 && records[z]->id_ == rid)
+				foundindex = z;
+			break;
+		}
 
-    return foundindex != -1 ? foundindex : records.size();
+	}
+
+	return foundindex != -1 ? foundindex : records.size();
 }
 
 /*
 BENCHMARK_DEFINE_F(VectorSearchFixture, lookup_table)(benchmark::State& state)
 {
-    size_t itr{}, sum{};
-    for (auto _ : state) {
-        auto rid = searches_[itr++ & state.range_x() - 1];
-        benchmark::DoNotOptimize(sum += records_[rid].id_);
-    }
+	size_t itr{}, sum{};
+	for (auto _ : state) {
+		auto rid = searches_[(searches_.size() - ++itr) % searches_.size()];
+		benchmark::DoNotOptimize(sum += records_[rid]->id_);
+	}
 }
-BENCHMARK_REGISTER_F(VectorSearchFixture, lookup_table)->RangeMultiplier(0xF + 1)->Range(0xF + 1, 0xFFFFFF + 1);
+BENCHMARK_REGISTER_F(VectorSearchFixture, lookup_table)->RangeMultiplier(0xF + 1)->Range(0xF + 1, 0xFFFFFF + 1)->Complexity()->MinTime(15);
 */
+
+size_t fast_upper_bound4(const std::vector<A*>& data, uint32_t value)
+{
+	size_t size = data.size();
+	size_t low = 0;
+
+	while (size >= 16) {
+		size_t half = size / 2;
+		size_t other_half = size - half;
+		size_t probe = low + half;
+		size_t other_low = low + other_half;
+		auto v = data[probe]->GetId();
+		size = half;
+		low = v >= value ? low : other_low;
+
+		half = size / 2;
+		other_half = size - half;
+		probe = low + half;
+		other_low = low + other_half;
+		v = data[probe]->GetId();
+		size = half;
+		low = v >= value ? low : other_low;
+
+		half = size / 2;
+		other_half = size - half;
+		probe = low + half;
+		other_low = low + other_half;
+		v = data[probe]->GetId();
+		size = half;
+		low = v >= value ? low : other_low;
+	}
+
+	while (size > 0) {
+		size_t half = size / 2;
+		size_t other_half = size - half;
+		size_t probe = low + half;
+		size_t other_low = low + other_half;
+		auto v = data[probe]->GetId();
+		size = half;
+		low = v >= value ? low : other_low;
+	}
+
+	return low;
+}
+
+size_t fibMonaccianSearch(const std::vector<A*>& arr, int x)
+{ 
+	int64_t n = arr.size() - 1;
+	/* Initialize fibonacci numbers */
+	int64_t fibMMm2 = 0;   // (m-2)'th Fibonacci No. 
+	int64_t fibMMm1 = 1;   // (m-1)'th Fibonacci No. 
+	int64_t fibM = fibMMm2 + fibMMm1;  // m'th Fibonacci 
+
+								   /* fibM is going to store the smallest Fibonacci 
+								   Number greater than or equal to n */
+	while (fibM <= n) 
+	{ 
+		fibMMm2 = fibMMm1; 
+		fibMMm1 = fibM; 
+		fibM  = fibMMm2 + fibMMm1; 
+	} 
+
+	// Marks the eliminated range from front 
+	int64_t offset = -1; 
+
+	/* while there are elements to be inspected. Note that 
+	we compare arr[fibMm2] with x. When fibM becomes 1, 
+	fibMm2 becomes 0 */
+	while (fibM > 1) 
+	{ 
+		// Check if fibMm2 is a valid location 
+		int64_t i = std::min(offset+fibMMm2, n-1); 
+
+		/* If x is greater than the value at index fibMm2, 
+		cut the subarray array from offset to i */
+		if (arr[i]->GetId() < x) 
+		{ 
+			fibM  = fibMMm1; 
+			fibMMm1 = fibMMm2; 
+			fibMMm2 = fibM - fibMMm1; 
+			offset = i; 
+		} 
+
+		/* If x is greater than the value at index fibMm2, 
+		cut the subarray after i+1  */
+		else if (arr[i]->GetId() > x) 
+		{ 
+			fibM  = fibMMm2; 
+			fibMMm1 = fibMMm1 - fibMMm2; 
+			fibMMm2 = fibM - fibMMm1; 
+		} 
+
+		/* element found. return index */
+		else return i; 
+	} 
+
+	/* comparing the last element with x */
+	if(fibMMm1 && arr[offset+1]->GetId()==x)return offset+1; 
+
+	/*element not found. return -1 */
+	return -1; 
+} 
+
+
+BENCHMARK_DEFINE_F(VectorSearchFixture, fib_search)(benchmark::State& state)
+{
+	uint64_t sum{}, itr{};
+	for (auto _ : state) {
+		auto rid = searches_[(searches_.size() - ++itr) % searches_.size()];
+		auto low = fibMonaccianSearch(records_, rid);
+		if (low < records_.size()) {
+			benchmark::DoNotOptimize(sum += records_[low]->id_);
+		}
+	}
+}
+BENCHMARK_REGISTER_F(VectorSearchFixture, fib_search)->RangeMultiplier(0xF + 1)->Range(0xF + 1, 0xFFFFFF + 1)->Complexity()->MinTime(15);
+
 
 BENCHMARK_DEFINE_F(VectorSearchFixture, binary_cmov)(benchmark::State& state)
 {
-    uint64_t sum{}, itr{};
-    for (auto _ : state) {
-        auto rid = searches_[itr++ & state.range_x() - 1];
-        auto low = binary_cmov(records_, rid);
-        if (low < records_.size()) {
-            benchmark::DoNotOptimize(sum += records_[low].id_);
-        }
-    }
+	uint64_t sum{}, itr{};
+	for (auto _ : state) {
+		auto rid = searches_[(searches_.size() - ++itr) % searches_.size()];
+		auto low = binary_cmov(records_, rid);
+		if (low < records_.size()) {
+			benchmark::DoNotOptimize(sum += records_[low]->id_);
+		}
+	}
 }
-BENCHMARK_REGISTER_F(VectorSearchFixture, binary_cmov)->RangeMultiplier(0xF + 1)->Range(0xF + 1, 0xFFFFFF + 1);
+//BENCHMARK_REGISTER_F(VectorSearchFixture, binary_cmov)->RangeMultiplier(0xF + 1)->Range(0xF + 1, 0xFFFFFF + 1)->Complexity()->MinTime(15);
 
 
 BENCHMARK_DEFINE_F(VectorSearchFixture, nary_search)(benchmark::State& state)
 {
-    uint64_t sum{}, itr{};
-    for (auto _ : state) {
-        auto rid = searches_[itr++ & state.range_x() - 1];
-        auto low = nary_search(records_, rid, 3);
-        if (low < records_.size()) {
-            benchmark::DoNotOptimize(sum += records_[low].id_);
-        }
-    }
+	uint64_t sum{}, itr{};
+	for (auto _ : state) {
+		auto rid = searches_[(searches_.size() - ++itr) % searches_.size()];
+		auto low = nary_search(records_, rid, 3);
+		if (low < records_.size()) {
+			benchmark::DoNotOptimize(sum += records_[low]->id_);
+		}
+	}
 }
-BENCHMARK_REGISTER_F(VectorSearchFixture, nary_search)->RangeMultiplier(0xF + 1)->Range(0xF + 1, 0xFFFFFF + 1);
+//BENCHMARK_REGISTER_F(VectorSearchFixture, nary_search)->RangeMultiplier(0xF + 1)->Range(0xF + 1, 0xFFFFFF + 1)->Complexity()->MinTime(15);
 
 
 BENCHMARK_DEFINE_F(VectorSearchFixture, lsearch)(benchmark::State& state)
 {
-    uint64_t sum{}, itr{};
-    for (auto _ : state) {
-        auto rid = searches_[itr++ & state.range_x() - 1];
-        auto low = lsearch(records_, rid);
-        if (low < records_.size()) {
-            benchmark::DoNotOptimize(sum += records_[low].id_);
-        }
-    }
+	uint64_t sum{}, itr{};
+	for (auto _ : state) {
+		auto rid = searches_[(searches_.size() - ++itr) % searches_.size()];
+		auto low = lsearch(records_, rid);
+		if (low < records_.size()) {
+			benchmark::DoNotOptimize(sum += records_[low]->id_);
+		}
+	}
 }
-BENCHMARK_REGISTER_F(VectorSearchFixture, lsearch)->RangeMultiplier(0xF + 1)->Range(0xF + 1, 0xFFFFFF + 1);
+//BENCHMARK_REGISTER_F(VectorSearchFixture, lsearch)->RangeMultiplier(0xF + 1)->Range(0xF + 1, 0xFFFFFF + 1)->Complexity()->MinTime(15);
 
 BENCHMARK_DEFINE_F(VectorSearchFixture, binary_fallback)(benchmark::State& state)
 {
-    uint64_t sum{}, itr{};
-    for (auto _ : state) {
-        auto rid = searches_[itr++ & state.range_x() - 1];
-        auto low = fallback_bsearch(records_, rid);
-        if (low < records_.size()) {
-            benchmark::DoNotOptimize(sum += records_[low].id_);
-        }
-    }
+	uint64_t sum{}, itr{};
+	for (auto _ : state) {
+		auto rid = searches_[(searches_.size() - ++itr) % searches_.size()];
+		auto low = fallback_bsearch(records_, rid);
+		if (low < records_.size()) {
+			benchmark::DoNotOptimize(sum += records_[low]->id_);
+		}
+	}
 }
-BENCHMARK_REGISTER_F(VectorSearchFixture, binary_fallback)->RangeMultiplier(0xF + 1)->Range(0xF + 1, 0xFFFFFF + 1);
+//BENCHMARK_REGISTER_F(VectorSearchFixture, binary_fallback)->RangeMultiplier(0xF + 1)->Range(0xF + 1, 0xFFFFFF + 1)->Complexity()->MinTime(15);
 
 BENCHMARK_DEFINE_F(VectorSearchFixture, binary_cmov2)(benchmark::State& state)
 {
-    uint64_t sum{}, itr{};
-    for (auto _ : state) {
-        auto rid = searches_[itr++ & state.range_x() - 1];
-        auto low = binary_cmov2(records_, rid);
-        if (low < records_.size()) {
-            benchmark::DoNotOptimize(sum += records_[low].id_);
-        }
-    }
+	uint64_t sum{}, itr{};
+	for (auto _ : state) {
+		auto rid = searches_[(searches_.size() - ++itr) % searches_.size()];
+		auto low = binary_cmov2(records_, rid);
+		if (low < records_.size()) {
+			benchmark::DoNotOptimize(sum += records_[low]->id_);
+		}
+	}
 }
-BENCHMARK_REGISTER_F(VectorSearchFixture, binary_cmov2)->RangeMultiplier(0xF + 1)->Range(0xF + 1, 0xFFFFFF + 1);
+//BENCHMARK_REGISTER_F(VectorSearchFixture, binary_cmov2)->RangeMultiplier(0xF + 1)->Range(0xF + 1, 0xFFFFFF + 1)->Complexity()->MinTime(15);
 
 BENCHMARK_DEFINE_F(VectorSearchFixture, bsearch)(benchmark::State& state)
 {
-    uint64_t sum{}, itr{};
-    for (auto _ : state) {
-        auto rid = searches_[itr++ & state.range_x() - 1];
-        auto low = bsearch(records_, rid);
-        if (low < records_.size()) {
-            benchmark::DoNotOptimize(sum += records_[low].id_);
-        }
-    }
+	uint64_t sum{}, itr{};
+	for (auto _ : state) {
+		auto rid = searches_[(searches_.size() - ++itr) % searches_.size()];
+		auto low = bsearch(records_, rid);
+		if (low < records_.size()) {
+			benchmark::DoNotOptimize(sum += records_[low]->id_);
+		}
+	}
 }
-BENCHMARK_REGISTER_F(VectorSearchFixture, bsearch)->RangeMultiplier(0xF + 1)->Range(0xF + 1, 0xFFFFFF + 1);
+BENCHMARK_REGISTER_F(VectorSearchFixture, bsearch)->RangeMultiplier(0xF + 1)->Range(0xF + 1, 0xFFFFFF + 1)->Complexity();
 
 BENCHMARK_DEFINE_F(VectorSearchFixture, combine_search)(benchmark::State& state)
 {
-    uint64_t sum{}, itr{};
-    for (auto _ : state) {
-        auto rid = searches_[itr++ & state.range_x() - 1];
-        auto low = combine_search(records_, rid);
-        if (low < records_.size()) {
-            benchmark::DoNotOptimize(sum += records_[low].id_);
-        }
-    }
+	uint64_t sum{}, itr{};
+	for (auto _ : state) {
+		auto rid = searches_[(searches_.size() - ++itr) % searches_.size()];
+		auto low = combine_search(records_, rid);
+		if (low < records_.size()) {
+			benchmark::DoNotOptimize(sum += records_[low]->id_);
+		}
+	}
 }
-BENCHMARK_REGISTER_F(VectorSearchFixture, combine_search)->RangeMultiplier(0xF + 1)->Range(0xF + 1, 0xFFFFFF + 1);
+BENCHMARK_REGISTER_F(VectorSearchFixture, combine_search)->RangeMultiplier(0xF + 1)->Range(0xF + 1, 0xFFFFFF + 1)->Complexity()->MinTime(15);
 
 BENCHMARK_DEFINE_F(VectorSearchFixture, b2search)(benchmark::State& state)
 {
-    uint64_t sum{}, itr{};
-    for (auto _ : state) {
-        auto rid = searches_[itr++ & state.range_x() - 1];
-        auto low = b2search(records_, rid);
-        if (low < records_.size()) {
-            benchmark::DoNotOptimize(sum += records_[low].id_);
-        }
-    }
+	uint64_t sum{}, itr{};
+	for (auto _ : state) {
+		auto rid = searches_[(searches_.size() - ++itr) % searches_.size()];
+		auto low = b2search(records_, rid);
+		if (low < records_.size()) {
+			benchmark::DoNotOptimize(sum += records_[low]->id_);
+		}
+	}
 }
-BENCHMARK_REGISTER_F(VectorSearchFixture, b2search)->RangeMultiplier(0xF + 1)->Range(0xF + 1, 0xFFFFFF + 1);
+BENCHMARK_REGISTER_F(VectorSearchFixture, b2search)->RangeMultiplier(0xF + 1)->Range(0xF + 1, 0xFFFFFF + 1)->Complexity()->MinTime(15);
 
 BENCHMARK_DEFINE_F(VectorSearchFixture, b2search_original)(benchmark::State& state)
 {
-    uint64_t sum{}, itr{};
-    for (auto _ : state) {
-        auto rid = searches_[itr++ & state.range_x() - 1];
-        auto low = b2search_original(records_, rid);
-        if (low < records_.size()) {
-            benchmark::DoNotOptimize(sum += records_[low].id_);
-        }
-    }
+	uint64_t sum{}, itr{};
+	for (auto _ : state) {
+		auto rid = searches_[(searches_.size() - ++itr) % searches_.size()];
+		auto low = b2search_original(records_, rid);
+		if (low < records_.size()) {
+			benchmark::DoNotOptimize(sum += records_[low]->id_);
+		}
+	}
 }
-BENCHMARK_REGISTER_F(VectorSearchFixture, b2search_original)->RangeMultiplier(0xF + 1)->Range(0xF + 1, 0xFFFFFF + 1);
+BENCHMARK_REGISTER_F(VectorSearchFixture, b2search_original)->RangeMultiplier(0xF + 1)->Range(0xF + 1, 0xFFFFFF + 1)->Complexity()->MinTime(15);
 
 /*
 BENCHMARK_F(VectorSearchFixture, test_vector_bsearch)(benchmark::State& state)
 {
-    uint64_t sum{};
-    size_t k, a = 0, z = records_.size(), foundindex, numrecs = records_.size(), itr = 0;
-    for (auto _ : state) {
-        auto rid = searches_[itr++ & state.range_x() - 1];
-        // auto first = std::lower_bound(std::begin(vect), std::end(vect), id, [](const A lhs, auto i) . bool { return
-        // lhs.id_ < i; });
-        a = 0;
-        z = records_.size();
-        while (z - a > 1) {
-            k = (a + z) >> 1;
+	uint64_t sum{};
+	size_t k, a = 0, z = records_.size(), foundindex, numrecs = records_.size(), itr = 0;
+	for (auto _ : state) {
+		auto rid = searches_[(searches_.size() - ++itr) % searches_.size()];
+		// auto first = std::lower_bound(std::begin(vect), std::end(vect), id, [](const A lhs, auto i) . bool { return
+		// lhs->id_ < i; });
+		a = 0;
+		z = records_.size();
+		while (z - a > 1) {
+			k = (a + z) >> 1;
 
-            uint32_t id = records_[k].id_;
-            if (id < rid) {
-                a = k;
-            } else if (id > rid) {
-                z = k;
-            } else {
-                foundindex = k;
-                break;
-            }
-        }
+			uint32_t id = records_[k]->id_;
+			if (id < rid) {
+				a = k;
+			} else if (id > rid) {
+				z = k;
+			} else {
+				foundindex = k;
+				break;
+			}
+		}
 
-        if (z - a <= 1) {
-            if (a == 0 && records_[a].id_ == rid)
-                foundindex = a;
-            if (z == numrecs - 1 && records_[z].id_ == rid)
-                foundindex = z;
-            //    break;
-        }
+		if (z - a <= 1) {
+			if (a == 0 && records_[a]->id_ == rid)
+				foundindex = a;
+			if (z == numrecs - 1 && records_[z]->id_ == rid)
+				foundindex = z;
+			//    break;
+		}
 
-        sum += records_[foundindex].id_;
-        //  }
-        // std::cout << sum << std::endl;
-    }
+		sum += records_[foundindex]->id_;
+		//  }
+		// std::cout << sum << std::endl;
+	}
 }
 */
+BENCHMARK_DEFINE_F(VectorSearchFixture, fast_upperbound)(benchmark::State& state)
+{
+	uint64_t sum{}, itr{};
+	for (auto _ : state) {
+		auto rid = searches_[(searches_.size() - ++itr) % searches_.size()];
+		auto low = fast_upper_bound4(records_, rid);
+		if (low < records_.size()) {
+			benchmark::DoNotOptimize(sum += records_[low]->id_);
+		}
+	}
+}
+//BENCHMARK_REGISTER_F(VectorSearchFixture, fast_upperbound)->RangeMultiplier(0xF + 1)->Range(0xF + 1, 0xFFFFFF + 1)->Complexity()->MinTime(15);
+
+BENCHMARK_DEFINE_F(VectorSearchFixture, std_equal_range)(benchmark::State& state)
+{
+	size_t itr{}, sum{};
+	for (auto _ : state) {
+		auto id = searches_[(searches_.size() - ++itr) % searches_.size()];
+		auto first = std::equal_range(std::cbegin(records_), std::cend(records_), id, Comp{});
+		if (first.first != first.second) {
+			benchmark::DoNotOptimize(sum += (*first.first)->GetId());
+		}
+	}
+}
+BENCHMARK_REGISTER_F(VectorSearchFixture, std_equal_range)->RangeMultiplier(0xF + 1)->Range(0xF + 1, 0xFFFFFF + 1)->Complexity()->MinTime(15);
+
 BENCHMARK_DEFINE_F(VectorSearchFixture, std_lower_bound)(benchmark::State& state)
 {
-    size_t itr{}, sum{};
-    for (auto _ : state) {
-        auto id = searches_[itr++ & state.range_x() - 1];
-        auto first = std::lower_bound(records_.begin(), records_.end(), id,
-                                      [](const A& lhs, auto i) -> bool { return lhs.id_ < i; });
-        if (first != records_.end()) {
-            benchmark::DoNotOptimize(sum += (*first).id_);
-        }
-    }
+	size_t itr{}, sum{};
+	for (auto _ : state) {
+		auto id = searches_[(searches_.size() - ++itr) % searches_.size()];
+		auto first = std::lower_bound(std::cbegin(records_), std::cend(records_), id, [](const auto& e, auto id) -> bool { return e->GetId() < id; });
+		if (first != std::cend(records_) && (*first)->GetId() == id) {
+			benchmark::DoNotOptimize(sum += (*first)->GetId());
+		}
+	}
 }
-BENCHMARK_REGISTER_F(VectorSearchFixture, std_lower_bound)->RangeMultiplier(0xF + 1)->Range(0xF + 1, 0xFFFFFF + 1);
+BENCHMARK_REGISTER_F(VectorSearchFixture, std_lower_bound)->RangeMultiplier(0xF + 1)->Range(0xF + 1, 0xFFFFFF + 1)->Complexity()->MinTime(15);
+
+BENCHMARK_DEFINE_F(VectorSearchFixture, std_partition_point)(benchmark::State& state)
+{
+	size_t itr{}, sum{};
+	for (auto _ : state) {
+		auto id = searches_[(searches_.size() - ++itr) % searches_.size()];
+		auto first = std::partition_point(std::cbegin(records_), std::cend(records_), [=](const auto& e) -> bool { return e->GetId() < id; });
+		if (first != std::cend(records_) && (*first)->GetId() == id) {
+			benchmark::DoNotOptimize(sum += (*first)->GetId());
+		}
+	}
+}
+BENCHMARK_REGISTER_F(VectorSearchFixture, std_partition_point)->RangeMultiplier(0xF + 1)->Range(0xF + 1, 0xFFFFFF + 1)->Complexity()->MinTime(15);
+
+
 /*
 void test_umap()
 {
-    const size_t test_size = 1000000;
-    std::unordered_map<uint32_t, A> umap;
-    umap.reserve(test_size);
-    for (size_t i = 0; i < test_size; i++) {
-        umap[static_cast<uint32_t>(i)] = new A(static_cast<uint32_t>(i));
-    }
-    std::random_device r;
-    std::default_random_engine e1(r());
-    std::uniform_int_distribution<int> uniform_dist(1, test_size - 1);
-    uint64_t sum = 0;
-    for (size_t i = 0; i < test_size; i++) {
-        auto item = umap[uniform_dist(e1)];
-        sum += item.id_;
-    }
+	const size_t test_size = 1000000;
+	std::unordered_map<uint32_t, A> umap;
+	umap.reserve(test_size);
+	for (size_t i = 0; i < test_size; i++) {
+		umap[static_cast<uint32_t>(i)] = new A(static_cast<uint32_t>(i));
+	}
+	std::random_device r;
+	std::default_random_engine e1(r());
+	std::uniform_int_distribution<int> uniform_dist(1, test_size - 1);
+	uint64_t sum = 0;
+	for (size_t i = 0; i < test_size; i++) {
+		auto item = umap[uniform_dist(e1)];
+		sum += item->id_;
+	}
 }
 */
 BENCHMARK_MAIN();
