@@ -6,7 +6,6 @@ cmake_minimum_required (VERSION 3.8)
 project ("Testing")
 
 # Include sub-projects.
-add_subdirectory ("ASIO")
 add_subdirectory ("Performance")
 add_subdirectory ("BinarySearch")
 add_subdirectory ("LUTBenchmark")
