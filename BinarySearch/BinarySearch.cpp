@@ -468,7 +468,7 @@ overload_set<F1, F2> overload(F1 f1, F2 f2)
 	return overload_set<F1, F2>(f1, f2);
 }
 
-size_t bsearch(const std::vector<uint32_t>& records_, uint32_t id)
+size_t bfibsearch(const std::vector<uint32_t>& records_, uint32_t id)
 {
 auto first = FibonacciSearch(std::cbegin(records_), std::cend(records_), id,
 	std::less<uint32_t>{});
@@ -478,11 +478,82 @@ auto first = FibonacciSearch(std::cbegin(records_), std::cend(records_), id,
 	return -1;
 }
 
+size_t bintsearch(const std::vector<uint32_t>& arr, uint32_t x)
+{
+	// Find indexes of two corners
+	int64_t lo = 0, hi = (arr.size() - 1);
+
+	// Since array is sorted, an element present
+	// in array must be in range defined by corner
+	while (lo <= hi && x >= arr[lo] && x <= arr[hi]) {
+		if (lo == hi) {
+			if (arr[lo] == x)
+				return lo;
+			return -1;
+		}
+		// Probing the position with keeping
+		// uniform distribution in mind.
+		int pos = lo + (((double)(hi - lo) / (arr[hi] - arr[lo])) * (x - arr[lo]));
+		if (pos < lo || pos > hi)
+			break;
+		// Condition of target found
+		if (arr[pos] == x)
+			return pos;
+
+		// If x is larger, x is in upper part
+		if (arr[pos] < x)
+			lo = pos + 1;
+
+		// If x is smaller, x is in the lower part
+		else
+			hi = pos - 1;
+	}
+	return -1;
+}
+
+template <typename RandomIterator, typename Element>
+RandomIterator InterpolationSearch(RandomIterator begin, RandomIterator end, Element elem)
+{
+	typedef typename std::iterator_traits<RandomIterator>::difference_type diffT;
+	RandomIterator last = end;
+	diffT count = std::distance(begin, end);
+
+	while (count && *begin <= elem && elem <= *(end - 1)) {
+
+		const double interpolation = (double(elem) - *begin) / (double(*(end - 1)) - double(*begin));
+
+		diffT probe = interpolation * (count - 1);
+
+		if (begin[probe] < elem) {
+			std::advance(begin,  probe + 1);
+		} else if (elem < begin[probe]) {
+			std::advance(end,  -probe);
+		} else {
+			std::advance(begin, probe);
+			return begin;
+		}
+		count = std::distance(begin, end);
+	}
+
+	return last;
+}
+
+
+size_t bsearch(const std::vector<uint32_t>& arr, uint32_t x)
+{
+	auto itr = InterpolationSearch(std::cbegin(arr), std::cend(arr), x);
+	if (itr != std::cend(arr)) {
+		return std::distance(std::cbegin(arr), itr);
+	}
+	return -1;
+}
+
+
 int main()
 {
     //std::vector<uint32_t> vec = {10, 11, 11, 12, 18, 110, 111};
-	std::vector<uint32_t> vec = {10, 11, 12, 14, 16, 18, 110};
-	//std::vector<uint32_t> vec = {};
+	//std::vector<uint32_t> vec = {10, 11, 12, 14, 16, 18, 110};
+	std::vector<uint32_t> vec = {10, 11, 12, 13, 111, 120};
     std::cout << bsearch(vec, 1) << std::endl;
     std::cout << bsearch(vec, 10) << std::endl;
     std::cout << bsearch(vec, 11) << std::endl;
