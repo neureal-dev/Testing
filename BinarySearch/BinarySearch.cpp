@@ -260,7 +260,7 @@ FibonacciIterator<Integer, Plus, Minus>::FibonacciIterator(Integer target) : cur
 {
 	//Integer newNext = curr + next;
 	//Integer newNext;
-	while (next < target) {
+	while (next <= target) {
 		//newNext = curr + next;
 		//curr = next;
 		//next = newNext;
@@ -404,10 +404,10 @@ RandomIterator FibonacciSearch(RandomIterator begin, RandomIterator end,
 		* giving us back one-indexed locations.
 		*/
 		//auto mid = std::next(begin, *itr);
-		if (comp(value, begin[*itr])) {
-			--itr;
-		}
-		/*/
+                if (comp(value, begin[*itr - 1])) {
+                    --itr;
+                }
+                /*/
 		else {
 		if (comp(begin[*itr], value)) {
 		std::advance(begin, *itr);
@@ -423,17 +423,15 @@ RandomIterator FibonacciSearch(RandomIterator begin, RandomIterator end,
 		}
 
 		/*/
-		else if (comp(begin[*itr], value)) {
-			std::advance(begin, *itr);
-			--itr;
-			--itr;
-			const auto n = std::distance(begin, end);
-			while (*itr >= n) {
-				--itr;
-			}
-		} else {
-			std::advance(begin, *itr);
-			return begin;
+                else if (comp(begin[*itr - 1], value)) {
+                    std::advance(begin, *itr);
+                    std::advance(itr, -2);
+                    while (*itr > std::distance(begin, end)) {
+                        --itr;
+                    }
+                } else {
+                    std::advance(begin, *itr - 1);
+                    return begin;
 			//return std::next(begin, *itr);
 		}
 		//*/
@@ -482,8 +480,8 @@ auto first = FibonacciSearch(std::cbegin(records_), std::cend(records_), id,
 
 int main()
 {
-    std::vector<uint32_t> vec = {10, 11, 11, 12, 18, 110, 111};
-	//std::vector<uint32_t> vec = {10, 11, 12, 18};
+    //std::vector<uint32_t> vec = {10, 11, 11, 12, 18, 110, 111};
+	std::vector<uint32_t> vec = {10, 11, 12, 14, 16, 18, 110};
 	//std::vector<uint32_t> vec = {};
     std::cout << bsearch(vec, 1) << std::endl;
     std::cout << bsearch(vec, 10) << std::endl;

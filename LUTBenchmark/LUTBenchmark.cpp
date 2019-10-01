@@ -24,7 +24,7 @@ public:
 	uint64_t id1_;
 	uint64_t id2_;
 	uint64_t id3_;
-	std::array<uint64_t, 1> id4_;
+	std::array<uint64_t, 10> id4_;
 };
 
 class VectorSearchFixture : public benchmark::Fixture {
@@ -567,7 +567,7 @@ FibonacciIterator<Integer, Plus, Minus>::FibonacciIterator(Integer target) : cur
 {
 	//Integer newNext = curr + next;
 	//Integer newNext;
-	while (next < target) {
+	while (next <= target) {
 		//newNext = curr + next;
 		//curr = next;
 		//next = newNext;
@@ -711,7 +711,13 @@ RandomIterator FibonacciSearch(RandomIterator begin, RandomIterator end,
 		* giving us back one-indexed locations.
 		*/
 		//auto mid = std::next(begin, *itr);
-		if (comp(value, begin[*itr])) {
+
+
+                auto c =  begin[*itr - 1];
+
+
+
+		if (comp(value, begin[*itr - 1])) {
 			--itr;
 		}
 		/*/
@@ -730,16 +736,20 @@ RandomIterator FibonacciSearch(RandomIterator begin, RandomIterator end,
 		}
 
 		/*/
-		else if (comp(begin[*itr], value)) {
+		else if (comp(begin[*itr-1], value)) {
 			std::advance(begin, *itr);
-			--itr;
-			--itr;
-			const auto n = std::distance(begin, end);
-			while (*itr >= n) {
-				--itr;
-			}
+                    std::advance(itr, -2);
+                    while (*itr > std::distance(begin, end)) {
+                        --itr;
+                    }
+			//--itr;
+			//--itr;
+			//const auto n = std::distance(begin, end);
+			//while (*itr > n) {
+			//	--itr;
+			//}
 		} else {
-			std::advance(begin, *itr);
+			std::advance(begin, *itr-1);
 			return begin;
 			//return std::next(begin, *itr);
 		}
