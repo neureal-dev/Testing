@@ -767,34 +767,37 @@ overload_set<F1, F2> overload(F1 f1, F2 f2)
     return overload_set<F1, F2>(f1, f2);
 }
 
-template <typename RandomIterator, typename Element>
-RandomIterator InterpolationSearch(RandomIterator begin, RandomIterator end, Element elem)
+template <typename RandomIterator, typename Value, typename Converter>
+RandomIterator InterpolationSearch(RandomIterator begin, RandomIterator end, Value key, Converter conv)
 {
-    typedef typename std::iterator_traits<RandomIterator>::difference_type diffT;
-    RandomIterator last = end;
-    diffT count = std::distance(begin, end);
+	using difference_type = std::iterator_traits<RandomIterator>::difference_type;
+	RandomIterator last = end;
+    difference_type count = std::distance(begin, end);
 
-    while (count > 0) {
-        auto e = (*(end - 1))->GetId();
-        auto s = (*begin)->GetId();
-        if (!(s <= elem) || !(elem <= e))
-        {
-            break;
+	while (count > 0) {
+		auto e = conv(*(end - 1));
+		auto s = conv(*begin);
+		if (key < s || e < key) {
+			break;
+		} else if (e - s == 0) {
+			return begin;
+		}
+
+		difference_type probe = (double(key) - s) * (count - 1) / (e - s);
+
+		auto p = conv(begin[probe]);
+
+        if (p < key) {
+            std::advance(begin, ++probe);
+			count -= probe;
+        } else if (key < p) {
+			std::advance(end, probe - count);
+			count = probe;
+		} else {
+			std::advance(begin, probe);
+            return begin;
         }
-        const double interpolation = (double(elem) - s) / (double(e) - double(s));
-
-        diffT probe = interpolation * (count - 1);
-
-        if (begin[probe]->GetId() < elem) {
-            std::advance(begin, probe + 1);
-        } else if (elem < begin[probe]->GetId()) {
-            std::advance(end, count - probe);
-        } else {
-            return std::next(begin, probe);
-        }
-        count = std::distance(begin, end);
     }
-
     return last;
 }
 
@@ -837,14 +840,13 @@ BENCHMARK_DEFINE_F(VectorSearchFixture, int_search)
     uint64_t sum {}, itr {};
     for (auto _ : state) {
         auto rid = searches_[(searches_.size() - ++itr) % searches_.size()];
-        auto low = InterpolationSearch(std::cbegin(records_), std::cend(records_), rid);
+		auto low = InterpolationSearch(std::cbegin(records_), std::cend(records_), rid, [](const A* e) { return e->GetId(); });
         if (low != std::cend(records_)) {
             benchmark::DoNotOptimize(sum += (*low)->id_);
         }
     }
 }
-BENCHMARK_REGISTER_F(VectorSearchFixture, int_search)->RangeMultiplier(0xF + 1)->Range(0xF + 1, 0xFFFFFF + 1);
-//->Complexity()->MinTime(15);
+BENCHMARK_REGISTER_F(VectorSearchFixture, int_search)->RangeMultiplier(0xF + 1)->Range(0xF + 1, 0xFFFFFF + 1)->Complexity()->MinTime(15);
 
 
 BENCHMARK_DEFINE_F(VectorSearchFixture, int2_search)
