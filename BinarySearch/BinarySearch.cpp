@@ -514,26 +514,26 @@ size_t bintsearch(const std::vector<uint32_t>& arr, uint32_t x)
 template <typename RandomIterator, typename Element>
 RandomIterator InterpolationSearch(RandomIterator begin, RandomIterator end, Element elem)
 {
-	typedef typename std::iterator_traits<RandomIterator>::difference_type diffT;
-	RandomIterator last = end;
-	diffT count = std::distance(begin, end);
+    typedef typename std::iterator_traits<RandomIterator>::difference_type diffT;
+    RandomIterator last = end;
+    diffT count = std::distance(begin, end);
 
-	while (count && *begin <= elem && elem <= *(end - 1)) {
+    while (count > 0 && (*begin) <= elem && elem <= (*(end - 1))) {
 
-		const double interpolation = (double(elem) - *begin) / (double(*(end - 1)) - double(*begin));
+        const double interpolation = (double(elem) - (*begin)) / (double((*(end - 1))) - double((*begin)));
 
-		diffT probe = interpolation * (count - 1);
+        diffT probe = interpolation * (count - 1);
 
-		if (begin[probe] < elem) {
-			std::advance(begin,  probe + 1);
-		} else if (elem < begin[probe]) {
-			std::advance(end,  -probe);
-		} else {
-			std::advance(begin, probe);
-			return begin;
-		}
-		count = std::distance(begin, end);
-	}
+        if (begin[probe] < elem) {
+            std::advance(begin, probe + 1);
+        } else if (elem < begin[probe]) {
+            std::advance(end, count - probe);
+        } else {
+            return std::next(begin, probe);
+        }
+        count = std::distance(begin, end);
+    }
+
 
 	return last;
 }
@@ -553,7 +553,7 @@ int main()
 {
     //std::vector<uint32_t> vec = {10, 11, 11, 12, 18, 110, 111};
 	//std::vector<uint32_t> vec = {10, 11, 12, 14, 16, 18, 110};
-	std::vector<uint32_t> vec = {10, 11, 12, 13, 111, 120};
+	std::vector<uint32_t> vec = {110, 111};
     std::cout << bsearch(vec, 1) << std::endl;
     std::cout << bsearch(vec, 10) << std::endl;
     std::cout << bsearch(vec, 11) << std::endl;
@@ -562,8 +562,10 @@ int main()
     std::cout << bsearch(vec, 16) << std::endl;
     std::cout << bsearch(vec, 18) << std::endl;
     std::cout << bsearch(vec, 110) << std::endl;
-    std::cout << bsearch(vec, 120) << std::endl;
+    std::cout << "?" << bsearch(vec, 120) << std::endl;
 	std::cout << bsearch(vec, 111) << std::endl;
+    std::cout << bsearch(vec, 112) << std::endl;
+
 /*
 	std::cout << (btsearch(vec.begin(), vec.end(), 1) == vec.end()) << std::endl;
 	std::cout << (btsearch(vec.begin(), vec.end(), 10) == vec.end()) << std::endl;

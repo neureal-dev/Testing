@@ -55,7 +55,7 @@ public:
             std::uniform_int_distribution<uint32_t> uniform_dist(65536 + strt, searches_.size() * 2 + 65536);
             //for (int64_t i = searches_.size(); i > strt; ) {
             for (int64_t i = searches_.size(), j = strt; i > j && i > strt; --i) {
-                searches_[i] = uniform_dist(rng) % (j * 16);
+                searches_[i - 1] = uniform_dist(rng) % (j * 16);
             }
             //}
         }
@@ -767,6 +767,37 @@ overload_set<F1, F2> overload(F1 f1, F2 f2)
     return overload_set<F1, F2>(f1, f2);
 }
 
+template <typename RandomIterator, typename Element>
+RandomIterator InterpolationSearch(RandomIterator begin, RandomIterator end, Element elem)
+{
+    typedef typename std::iterator_traits<RandomIterator>::difference_type diffT;
+    RandomIterator last = end;
+    diffT count = std::distance(begin, end);
+
+    while (count > 0) {
+        auto e = (*(end - 1))->GetId();
+        auto s = (*begin)->GetId();
+        if (!(s <= elem) || !(elem <= e))
+        {
+            break;
+        }
+        const double interpolation = (double(elem) - s) / (double(e) - double(s));
+
+        diffT probe = interpolation * (count - 1);
+
+        if (begin[probe]->GetId() < elem) {
+            std::advance(begin, probe + 1);
+        } else if (elem < begin[probe]->GetId()) {
+            std::advance(end, count - probe);
+        } else {
+            return std::next(begin, probe);
+        }
+        count = std::distance(begin, end);
+    }
+
+    return last;
+}
+
 size_t interpolationSearch(const std::vector<A*>& arr, int x)
 {
     // Find indexes of two corners
@@ -782,7 +813,7 @@ size_t interpolationSearch(const std::vector<A*>& arr, int x)
         }
         // Probing the position with keeping
         // uniform distribution in mind.
-        int pos = lo + (((double)(hi - lo) / (arr[hi] - arr[lo])) * (x - arr[lo]->GetId()));
+        int pos = lo + (((double)(hi - lo) / (double(arr[hi]->GetId()) - arr[lo]->GetId())) * (x - arr[lo]->GetId()));
         if (pos < lo || pos > hi)
             break;
         // Condition of target found
@@ -806,13 +837,29 @@ BENCHMARK_DEFINE_F(VectorSearchFixture, int_search)
     uint64_t sum {}, itr {};
     for (auto _ : state) {
         auto rid = searches_[(searches_.size() - ++itr) % searches_.size()];
+        auto low = InterpolationSearch(std::cbegin(records_), std::cend(records_), rid);
+        if (low != std::cend(records_)) {
+            benchmark::DoNotOptimize(sum += (*low)->id_);
+        }
+    }
+}
+BENCHMARK_REGISTER_F(VectorSearchFixture, int_search)->RangeMultiplier(0xF + 1)->Range(0xF + 1, 0xFFFFFF + 1);
+//->Complexity()->MinTime(15);
+
+
+BENCHMARK_DEFINE_F(VectorSearchFixture, int2_search)
+(benchmark::State& state)
+{
+    uint64_t sum {}, itr {};
+    for (auto _ : state) {
+        auto rid = searches_[(searches_.size() - ++itr) % searches_.size()];
         auto low = interpolationSearch(records_, rid);
         if (low < records_.size()) {
             benchmark::DoNotOptimize(sum += records_[low]->id_);
         }
     }
 }
-BENCHMARK_REGISTER_F(VectorSearchFixture, int_search)->RangeMultiplier(0xF + 1)->Range(0xF + 1, 0xFFFFFF + 1)->Complexity()->MinTime(15);
+BENCHMARK_REGISTER_F(VectorSearchFixture, int2_search)->RangeMultiplier(0xF + 1)->Range(0xF + 1, 0xFFFFFF + 1)->Complexity()->MinTime(15);
 
 BENCHMARK_DEFINE_F(VectorSearchFixture, fib3_search)
 (benchmark::State& state)
