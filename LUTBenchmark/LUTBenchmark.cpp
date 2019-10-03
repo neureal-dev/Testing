@@ -770,35 +770,38 @@ overload_set<F1, F2> overload(F1 f1, F2 f2)
 template <typename RandomIterator, typename Value, typename Converter>
 RandomIterator InterpolationSearch(RandomIterator begin, RandomIterator end, Value key, Converter conv)
 {
-	using difference_type = std::iterator_traits<RandomIterator>::difference_type;
-	RandomIterator last = end;
+    using difference_type = std::iterator_traits<RandomIterator>::difference_type;
+    RandomIterator last = std::prev(end);
     difference_type count = std::distance(begin, end);
 
-	while (count > 0) {
-		auto e = conv(*(end - 1));
-		auto s = conv(*begin);
-		if (key < s || e < key) {
-			break;
-		} else if (e - s == 0) {
-			return begin;
-		}
+    while (count > 0) {
 
-		difference_type probe = (double(key) - s) * (count - 1) / (e - s);
+        auto s = conv(*begin);
+        if (!(s < key)) {
+            return !(key < s) ? begin : end;
+        }
+        auto e = conv(*last);
+        if (!(key < e)) {
+            return !(e < key) ? last : end;
+        }
+        
+        difference_type probe = (double(key) - s) * (count - 1) / (e - s);
+        //difference_type probe = std::distance(begin, end) >> 1;
 
-		auto p = conv(begin[probe]);
+        auto p = conv(begin[probe]);
 
         if (p < key) {
             std::advance(begin, ++probe);
-			count -= probe;
+            count -= probe;
         } else if (key < p) {
-			std::advance(end, probe - count);
-			count = probe;
-		} else {
-			std::advance(begin, probe);
+            std::advance(last, probe - count);
+            count = probe;
+        } else {
+            std::advance(begin, probe);
             return begin;
         }
     }
-    return last;
+    return end;
 }
 
 size_t interpolationSearch(const std::vector<A*>& arr, int x)
@@ -840,28 +843,14 @@ BENCHMARK_DEFINE_F(VectorSearchFixture, int_search)
     uint64_t sum {}, itr {};
     for (auto _ : state) {
         auto rid = searches_[(searches_.size() - ++itr) % searches_.size()];
-		auto low = InterpolationSearch(std::cbegin(records_), std::cend(records_), rid, [](const A* e) { return e->GetId(); });
+        auto low = InterpolationSearch(std::cbegin(records_), std::cend(records_), rid, [](const A* e) { return e->GetId(); });
         if (low != std::cend(records_)) {
             benchmark::DoNotOptimize(sum += (*low)->id_);
         }
     }
 }
-BENCHMARK_REGISTER_F(VectorSearchFixture, int_search)->RangeMultiplier(0xF + 1)->Range(0xF + 1, 0xFFFFFF + 1)->Complexity()->MinTime(15);
-
-
-BENCHMARK_DEFINE_F(VectorSearchFixture, int2_search)
-(benchmark::State& state)
-{
-    uint64_t sum {}, itr {};
-    for (auto _ : state) {
-        auto rid = searches_[(searches_.size() - ++itr) % searches_.size()];
-        auto low = interpolationSearch(records_, rid);
-        if (low < records_.size()) {
-            benchmark::DoNotOptimize(sum += records_[low]->id_);
-        }
-    }
-}
-BENCHMARK_REGISTER_F(VectorSearchFixture, int2_search)->RangeMultiplier(0xF + 1)->Range(0xF + 1, 0xFFFFFF + 1)->Complexity()->MinTime(15);
+BENCHMARK_REGISTER_F(VectorSearchFixture, int_search)->RangeMultiplier(0xF + 1)->Range(0xF + 1, 0xFFFFFF + 1);
+//->Complexity()->MinTime(15);
 
 BENCHMARK_DEFINE_F(VectorSearchFixture, fib3_search)
 (benchmark::State& state)
@@ -885,7 +874,24 @@ BENCHMARK_DEFINE_F(VectorSearchFixture, fib3_search)
         }
     }
 }
-BENCHMARK_REGISTER_F(VectorSearchFixture, fib3_search)->RangeMultiplier(0xF + 1)->Range(0xF + 1, 0xFFFFFF + 1)->Complexity()->MinTime(10);
+BENCHMARK_REGISTER_F(VectorSearchFixture, fib3_search)->RangeMultiplier(0xF + 1)->Range(0xF + 1, 0xFFFFFF + 1);
+//->Complexity()->MinTime(10);
+
+BENCHMARK_DEFINE_F(VectorSearchFixture, int2_search)
+(benchmark::State& state)
+{
+    uint64_t sum {}, itr {};
+    for (auto _ : state) {
+        auto rid = searches_[(searches_.size() - ++itr) % searches_.size()];
+        auto low = interpolationSearch(records_, rid);
+        if (low < records_.size()) {
+            benchmark::DoNotOptimize(sum += records_[low]->id_);
+        }
+    }
+}
+BENCHMARK_REGISTER_F(VectorSearchFixture, int2_search)->RangeMultiplier(0xF + 1)->Range(0xF + 1, 0xFFFFFF + 1)->Complexity()->MinTime(15);
+
+
 
 BENCHMARK_DEFINE_F(VectorSearchFixture, fib_search)
 (benchmark::State& state)

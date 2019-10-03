@@ -439,16 +439,17 @@ template <typename RandomIterator, typename Value, typename Converter>
 RandomIterator InterpolationSearch(RandomIterator begin, RandomIterator end, Value key, Converter conv)
 {
     using difference_type = std::iterator_traits<RandomIterator>::difference_type;
-    RandomIterator last = end;
+    RandomIterator last = end - 1;
     difference_type count = std::distance(begin, end);
 
     while (count > 0) {
-        auto e = conv(*(end - 1));
         auto s = conv(*begin);
-        if (key < s || e < key) {
-            break;
-        } else if (e - s == 0) {
-            return begin;
+        if (!(s < key)) {
+            return !(key < s) ? begin : end;
+        }
+        auto e = conv(*last);
+        if (!(key < e)) {
+            return !(e < key) ? last : end;
         }
 
         difference_type probe = (double(key) - s) * (count - 1) / (e - s);
@@ -459,14 +460,14 @@ RandomIterator InterpolationSearch(RandomIterator begin, RandomIterator end, Val
             std::advance(begin, ++probe);
             count -= probe;
         } else if (key < p) {
-            std::advance(end, probe - count);
+            std::advance(last, probe - count);
             count = probe;
         } else {
             std::advance(begin, probe);
-            return begin;
+            //return begin;
         }
     }
-    return last;
+    return end;
 }
 
 size_t bsearch(const std::vector<uint32_t>& arr, uint32_t x)
@@ -485,7 +486,7 @@ int main()
 {
     //std::vector<uint32_t> vec = {10, 11, 11, 12, 18, 110, 111};
     //std::vector<uint32_t> vec = {10, 11, 12, 14, 16, 18, 110};
-    std::vector<uint32_t> vec = { 10, 11, 12, 14, 16, 18, 120 };
+    std::vector<uint32_t> vec = { 110, 111, 120 };
     std::cout << bsearch(vec, 1) << std::endl;
     std::cout << bsearch(vec, 10) << std::endl;
     std::cout << bsearch(vec, 11) << std::endl;
