@@ -427,6 +427,41 @@ struct Comp
 	inline bool operator() ( uint32_t i, const A* s ) const { return i < s->id_; }
 };
 
+size_t HybridSearch(const std::vector<A*>& a, uint32_t x)
+{
+	int left = 0, right = a.size() - 1;
+	int Inter, Mid;
+	while (left < right) {
+		//double s = double((x - a[left]->id_)) * (right - left) / (a[right]->id_ - a[left]->id_);
+		Inter = left + double((x - a[left]->id_)) * (right - left) / (a[right]->id_ - a[left]->id_);
+		if (Inter > right || Inter < left) {
+
+		break;
+	}
+		if (x > a[Inter]->id_) {
+			Mid = (Inter + right) / 2;
+			if (x <= a[Mid]->id_) {
+				left = Inter + 1;
+				right = Mid;
+
+			} else {
+				left = Mid + 1;
+			}
+		} else if (x < a[Inter]->id_) {
+			Mid = (Inter + left) / 2;
+			if (x >= a[Mid]->id_) {
+				left = Mid;
+				right = Inter - 1;
+			} else {
+				right = Mid - 1;
+			}
+		} else {
+			return Inter;
+		}
+	}
+	std::cout << Inter << right << left << std::endl;
+	return -1;
+}
 
 static void BM_SomeFunction(benchmark::State& state)
 {
@@ -518,15 +553,21 @@ static void BM_SomeFunction(benchmark::State& state)
 	for (auto _ : state) {
 		//benchmark::DoNotOptimize(
 		//auto a = FibonacciSearch(std::cbegin(vect), std::cend(vect), vecn[++i % vecn.size()], Comp{});
+		//auto r = HybridSearch(vect, vecn[++i % vecn.size()]);
 		auto a = HybridInterpolationSearch(std::cbegin(vect), std::cend(vect), vecn[++i % vecn.size()],
 			Comp{},
 			[](A* first, A* last, uint32_t key) { return double(key - first->id_) / double(last->id_ - first->id_); });
+		//if (r < vecn.size()) {
 		if (a != std::end(vect)) {
 			if ((*a)->id_ != vecn[i % vecn.size()])
 			std::cout << "!!!err" << (*a)->id_ << " " << vecn[i % vecn.size()] <<  std::endl;
+			//if (vect[r]->id_ != vecn[i % vecn.size()]) {
+			//	std::cout << "error " << std::endl;
+			//}
 		}
 		else {
 			std::cout << vecn[i % vecn.size()] << "errror " << (a != std::end(vect)) << std::endl;
+			//std::cout << "search error " << r << std::endl;
 		}
 		//);
     }
