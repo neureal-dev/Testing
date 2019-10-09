@@ -29,8 +29,8 @@ public:
     uint32_t id_;
     uint64_t id1_;
     uint64_t id2_;
-    uint64_t id3_;
-    std::array<uint64_t, 10> id4_;
+    //uint64_t id3_;
+    std::array<uint64_t, 20> id4_;
 };
 
 class VectorSearchFixture : public benchmark::Fixture {
@@ -53,6 +53,14 @@ public:
             std::mt19937 rng;
             rng.seed(std::random_device()());
             std::uniform_int_distribution<uint32_t> uniform_dist(65536 + strt, searches_.size() * 2 + 65536);
+
+            std::normal_distribution<double> distribution(10, 4.0);
+
+            for (int i = 0; i < 10000; ++i) {
+                double number = distribution(rng);
+                std::cout << number * searches_.size()  << std::endl;
+            }
+
             //for (int64_t i = searches_.size(); i > strt; ) {
             for (int64_t i = searches_.size(), j = strt; i > j && i > strt; --i) {
                 searches_[i - 1] = uniform_dist(rng) % (j * 16);
@@ -348,7 +356,7 @@ BENCHMARK_DEFINE_F(VectorSearchFixture, lookup_table)(benchmark::State& state)
 		benchmark::DoNotOptimize(sum += records_[rid]->id_);
 	}
 }
-BENCHMARK_REGISTER_F(VectorSearchFixture, lookup_table)->RangeMultiplier(0xF + 1)->Range(0xF + 1, 0xFFFFFF + 1)->Complexity()->MinTime(15);
+BENCHMARK_REGISTER_F(VectorSearchFixture, lookup_table)->RangeMultiplier(0xF + 1)->Range(0xF + 1, 0xFFFFFF + 1)->Complexity();
 */
 
 size_t fast_upper_bound4(const std::vector<A*>& data, uint32_t value)
@@ -784,7 +792,7 @@ RandomIterator InterpolationSearch(RandomIterator begin, RandomIterator end, Val
         if (!(key < e)) {
             return !(e < key) ? last : end;
         }
-        
+
         difference_type probe = (double(key) - s) * (count - 1) / (e - s);
         //difference_type probe = std::distance(begin, end) >> 1;
 
@@ -803,6 +811,54 @@ RandomIterator InterpolationSearch(RandomIterator begin, RandomIterator end, Val
     }
     return end;
 }
+
+int HybridSearch(const std::vector<A*>& a, uint32_t x)
+{
+    int left = 0, right = a.size() - 1;
+    int Inter, Mid;
+    while (left < right) {
+        //double s = double((x - a[left]->id_)) * (right - left) / (a[right]->id_ - a[left]->id_);
+        Inter = left + double((x - a[left]->id_)) * (right - left) / (a[right]->id_ - a[left]->id_);
+        if (Inter > right || Inter < left)
+            break;
+        if (x > a[Inter]->id_) {
+            Mid = (Inter + right) / 2;
+            if (x <= a[Mid]->id_) {
+                left = Inter + 1;
+                right = Mid;
+
+            } else {
+                left = Mid + 1;
+            }
+        } else if (x < a[Inter]->id_) {
+            Mid = (Inter + left) / 2;
+            if (x >= a[Mid]->id_) {
+                left = Mid;
+                right = Inter - 1;
+            } else {
+                right = Mid - 1;
+            }
+        } else {
+            return Inter;
+        }
+    }
+    return -1;
+}
+
+BENCHMARK_DEFINE_F(VectorSearchFixture, hib_search)
+(benchmark::State& state)
+{
+    uint64_t sum {}, itr {};
+    for (auto _ : state) {
+        auto rid = searches_[(searches_.size() - ++itr) % searches_.size()];
+        auto low = HybridSearch(records_, rid);
+        if (low < records_.size()) {
+            benchmark::DoNotOptimize(sum += records_[low]->id_);
+        }
+    }
+}
+BENCHMARK_REGISTER_F(VectorSearchFixture, hib_search)->RangeMultiplier(0xF + 1)->Range(0xF + 1, 0xFFFFFF + 1)->Complexity();
+
 
 size_t interpolationSearch(const std::vector<A*>& arr, int x)
 {
@@ -849,8 +905,7 @@ BENCHMARK_DEFINE_F(VectorSearchFixture, int_search)
         }
     }
 }
-BENCHMARK_REGISTER_F(VectorSearchFixture, int_search)->RangeMultiplier(0xF + 1)->Range(0xF + 1, 0xFFFFFF + 1);
-//->Complexity()->MinTime(15);
+BENCHMARK_REGISTER_F(VectorSearchFixture, int_search)->RangeMultiplier(0xF + 1)->Range(0xF + 1, 0xFFFFFF + 1)->Complexity();
 
 BENCHMARK_DEFINE_F(VectorSearchFixture, fib3_search)
 (benchmark::State& state)
@@ -889,9 +944,7 @@ BENCHMARK_DEFINE_F(VectorSearchFixture, int2_search)
         }
     }
 }
-BENCHMARK_REGISTER_F(VectorSearchFixture, int2_search)->RangeMultiplier(0xF + 1)->Range(0xF + 1, 0xFFFFFF + 1)->Complexity()->MinTime(15);
-
-
+BENCHMARK_REGISTER_F(VectorSearchFixture, int2_search)->RangeMultiplier(0xF + 1)->Range(0xF + 1, 0xFFFFFF + 1)->Complexity();
 
 BENCHMARK_DEFINE_F(VectorSearchFixture, fib_search)
 (benchmark::State& state)
@@ -905,7 +958,7 @@ BENCHMARK_DEFINE_F(VectorSearchFixture, fib_search)
         }
     }
 }
-BENCHMARK_REGISTER_F(VectorSearchFixture, fib_search)->RangeMultiplier(0xF + 1)->Range(0xF + 1, 0xFFFFFF + 1)->Complexity()->MinTime(15);
+BENCHMARK_REGISTER_F(VectorSearchFixture, fib_search)->RangeMultiplier(0xF + 1)->Range(0xF + 1, 0xFFFFFF + 1)->Complexity();
 
 BENCHMARK_DEFINE_F(VectorSearchFixture, binary_cmov)
 (benchmark::State& state)
@@ -919,7 +972,7 @@ BENCHMARK_DEFINE_F(VectorSearchFixture, binary_cmov)
         }
     }
 }
-//BENCHMARK_REGISTER_F(VectorSearchFixture, binary_cmov)->RangeMultiplier(0xF + 1)->Range(0xF + 1, 0xFFFFFF + 1)->Complexity()->MinTime(15);
+BENCHMARK_REGISTER_F(VectorSearchFixture, binary_cmov)->RangeMultiplier(0xF + 1)->Range(0xF + 1, 0xFFFFFF + 1)->Complexity();
 
 BENCHMARK_DEFINE_F(VectorSearchFixture, nary_search)
 (benchmark::State& state)
@@ -933,7 +986,7 @@ BENCHMARK_DEFINE_F(VectorSearchFixture, nary_search)
         }
     }
 }
-//BENCHMARK_REGISTER_F(VectorSearchFixture, nary_search)->RangeMultiplier(0xF + 1)->Range(0xF + 1, 0xFFFFFF + 1)->Complexity()->MinTime(15);
+//BENCHMARK_REGISTER_F(VectorSearchFixture, nary_search)->RangeMultiplier(0xF + 1)->Range(0xF + 1, 0xFFFFFF + 1)->Complexity();
 
 BENCHMARK_DEFINE_F(VectorSearchFixture, lsearch)
 (benchmark::State& state)
@@ -947,7 +1000,7 @@ BENCHMARK_DEFINE_F(VectorSearchFixture, lsearch)
         }
     }
 }
-//BENCHMARK_REGISTER_F(VectorSearchFixture, lsearch)->RangeMultiplier(0xF + 1)->Range(0xF + 1, 0xFFFFFF + 1)->Complexity()->MinTime(15);
+//BENCHMARK_REGISTER_F(VectorSearchFixture, lsearch)->RangeMultiplier(0xF + 1)->Range(0xF + 1, 0xFFFFFF + 1)->Complexity();
 
 BENCHMARK_DEFINE_F(VectorSearchFixture, binary_fallback)
 (benchmark::State& state)
@@ -961,7 +1014,7 @@ BENCHMARK_DEFINE_F(VectorSearchFixture, binary_fallback)
         }
     }
 }
-//BENCHMARK_REGISTER_F(VectorSearchFixture, binary_fallback)->RangeMultiplier(0xF + 1)->Range(0xF + 1, 0xFFFFFF + 1)->Complexity()->MinTime(15);
+//BENCHMARK_REGISTER_F(VectorSearchFixture, binary_fallback)->RangeMultiplier(0xF + 1)->Range(0xF + 1, 0xFFFFFF + 1)->Complexity();
 
 BENCHMARK_DEFINE_F(VectorSearchFixture, binary_cmov2)
 (benchmark::State& state)
@@ -975,7 +1028,7 @@ BENCHMARK_DEFINE_F(VectorSearchFixture, binary_cmov2)
         }
     }
 }
-//BENCHMARK_REGISTER_F(VectorSearchFixture, binary_cmov2)->RangeMultiplier(0xF + 1)->Range(0xF + 1, 0xFFFFFF + 1)->Complexity()->MinTime(15);
+//BENCHMARK_REGISTER_F(VectorSearchFixture, binary_cmov2)->RangeMultiplier(0xF + 1)->Range(0xF + 1, 0xFFFFFF + 1)->Complexity();
 
 BENCHMARK_DEFINE_F(VectorSearchFixture, bsearch)
 (benchmark::State& state)
@@ -1003,7 +1056,7 @@ BENCHMARK_DEFINE_F(VectorSearchFixture, combine_search)
         }
     }
 }
-BENCHMARK_REGISTER_F(VectorSearchFixture, combine_search)->RangeMultiplier(0xF + 1)->Range(0xF + 1, 0xFFFFFF + 1)->Complexity()->MinTime(15);
+BENCHMARK_REGISTER_F(VectorSearchFixture, combine_search)->RangeMultiplier(0xF + 1)->Range(0xF + 1, 0xFFFFFF + 1)->Complexity();
 
 BENCHMARK_DEFINE_F(VectorSearchFixture, b2search)
 (benchmark::State& state)
@@ -1017,7 +1070,7 @@ BENCHMARK_DEFINE_F(VectorSearchFixture, b2search)
         }
     }
 }
-BENCHMARK_REGISTER_F(VectorSearchFixture, b2search)->RangeMultiplier(0xF + 1)->Range(0xF + 1, 0xFFFFFF + 1)->Complexity()->MinTime(15);
+BENCHMARK_REGISTER_F(VectorSearchFixture, b2search)->RangeMultiplier(0xF + 1)->Range(0xF + 1, 0xFFFFFF + 1)->Complexity();
 
 BENCHMARK_DEFINE_F(VectorSearchFixture, b2search_original)
 (benchmark::State& state)
@@ -1031,7 +1084,7 @@ BENCHMARK_DEFINE_F(VectorSearchFixture, b2search_original)
         }
     }
 }
-BENCHMARK_REGISTER_F(VectorSearchFixture, b2search_original)->RangeMultiplier(0xF + 1)->Range(0xF + 1, 0xFFFFFF + 1)->Complexity()->MinTime(15);
+BENCHMARK_REGISTER_F(VectorSearchFixture, b2search_original)->RangeMultiplier(0xF + 1)->Range(0xF + 1, 0xFFFFFF + 1)->Complexity();
 
 /*
 BENCHMARK_F(VectorSearchFixture, test_vector_bsearch)(benchmark::State& state)
@@ -1084,7 +1137,7 @@ BENCHMARK_DEFINE_F(VectorSearchFixture, fast_upperbound)
         }
     }
 }
-//BENCHMARK_REGISTER_F(VectorSearchFixture, fast_upperbound)->RangeMultiplier(0xF + 1)->Range(0xF + 1, 0xFFFFFF + 1)->Complexity()->MinTime(15);
+//BENCHMARK_REGISTER_F(VectorSearchFixture, fast_upperbound)->RangeMultiplier(0xF + 1)->Range(0xF + 1, 0xFFFFFF + 1)->Complexity();
 
 BENCHMARK_DEFINE_F(VectorSearchFixture, std_equal_range)
 (benchmark::State& state)
@@ -1098,7 +1151,7 @@ BENCHMARK_DEFINE_F(VectorSearchFixture, std_equal_range)
         }
     }
 }
-BENCHMARK_REGISTER_F(VectorSearchFixture, std_equal_range)->RangeMultiplier(0xF + 1)->Range(0xF + 1, 0xFFFFFF + 1)->Complexity()->MinTime(15);
+BENCHMARK_REGISTER_F(VectorSearchFixture, std_equal_range)->RangeMultiplier(0xF + 1)->Range(0xF + 1, 0xFFFFFF + 1)->Complexity();
 
 BENCHMARK_DEFINE_F(VectorSearchFixture, std_lower_bound)
 (benchmark::State& state)
@@ -1112,7 +1165,7 @@ BENCHMARK_DEFINE_F(VectorSearchFixture, std_lower_bound)
         }
     }
 }
-BENCHMARK_REGISTER_F(VectorSearchFixture, std_lower_bound)->RangeMultiplier(0xF + 1)->Range(0xF + 1, 0xFFFFFF + 1)->Complexity()->MinTime(15);
+BENCHMARK_REGISTER_F(VectorSearchFixture, std_lower_bound)->RangeMultiplier(0xF + 1)->Range(0xF + 1, 0xFFFFFF + 1)->Complexity();
 
 BENCHMARK_DEFINE_F(VectorSearchFixture, std_partition_point)
 (benchmark::State& state)
@@ -1126,7 +1179,7 @@ BENCHMARK_DEFINE_F(VectorSearchFixture, std_partition_point)
         }
     }
 }
-BENCHMARK_REGISTER_F(VectorSearchFixture, std_partition_point)->RangeMultiplier(0xF + 1)->Range(0xF + 1, 0xFFFFFF + 1)->Complexity()->MinTime(15);
+BENCHMARK_REGISTER_F(VectorSearchFixture, std_partition_point)->RangeMultiplier(0xF + 1)->Range(0xF + 1, 0xFFFFFF + 1)->Complexity();
 
 /*
 void test_umap()
