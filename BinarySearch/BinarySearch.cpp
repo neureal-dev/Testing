@@ -435,44 +435,86 @@ size_t bintsearch(const std::vector<uint32_t>& arr, uint32_t x)
     return -1;
 }
 
-template <typename RandomIterator, typename Value, typename Converter>
-RandomIterator InterpolationSearch(RandomIterator begin, RandomIterator end, Value key, Converter conv)
+template <typename RandomIterator, typename Value, typename Comparator, typename Converter>
+RandomIterator InterpolationSearch(RandomIterator begin, RandomIterator end, Value key, Comparator comp, Converter lerp)
 {
-    using difference_type = std::iterator_traits<RandomIterator>::difference_type;
-    RandomIterator last = end - 1;
-    difference_type count = std::distance(begin, end);
+	using difference_type = std::iterator_traits<RandomIterator>::difference_type;
 
-    while (count > 0) {
-        auto s = conv(*begin);
-        if (!(s < key)) {
-            return !(key < s) ? begin : end;
-        }
-        auto e = conv(*last);
-        if (!(key < e)) {
-            return !(e < key) ? last : end;
-        }
+	difference_type count = std::distance(begin, end);
 
-        difference_type probe = (double(key) - s) * (count - 1) / (e - s);
+	//RandomIterator last = std::prev(end);
 
-        auto p = conv(begin[probe]);
+	while (count > 0) {
+		/*
+		if (!comp(*begin, key)) {
+			end = !comp(key, *begin) ? begin : end;
+			break;
+		}
 
-        if (p < key) {
-            std::advance(begin, ++probe);
-            count -= probe;
-        } else if (key < p) {
-            std::advance(last, probe - count);
-            count = probe;
-        } else {
-            std::advance(begin, probe);
-            //return begin;
-        }
-    }
-    return end;
+		if (!comp(key, *last)) {
+			end = !comp(*last, key) ? last : end;
+			break;
+		}
+
+		difference_type probe = lerp(*begin, *last, key) * (count - 1);
+
+		if (comp(key, begin[probe])) {
+			std::advance(last, probe - count);
+			count = probe;
+		} else if (comp(begin[probe], key)) {
+			std::advance(begin, ++probe);
+			count -= probe;
+		} else {
+			end = std::next(begin, probe);
+			break;
+		}
+		*/
+		//s++;
+
+		if (!comp(*begin, key)) {
+			end = !comp(key, *begin) ? begin : end;
+			break;
+		}
+
+		if (!comp(key, *(end - 1))) {
+			end = !comp(*(end -1), key) ? (end - 1) : end;
+			break;
+		}
+
+		difference_type probe = lerp(*begin, *(end - 1), key) * (count - 1);
+		if (comp(key, begin[probe])) {
+			probe = count >> 1;
+			if (!comp(key, begin[probe])) {
+				std::advance(begin, probe);
+				count -= probe;
+			} else {
+				std::advance(end, probe - count);
+				count = probe;
+			}
+		} else if (comp(begin[probe], key)) {
+			probe = count >> 1;
+			if (!comp(begin[probe], key)) {
+				std::advance(end, probe - count);
+				count = probe;
+			} else {
+				std::advance(begin, ++probe);
+				count -= probe;
+			}
+		} else {
+			end = std::next(begin, probe);
+			break;
+		}
+	}
+	return end;
 }
+
 
 size_t bsearch(const std::vector<uint32_t>& arr, uint32_t x)
 {
-    auto itr = InterpolationSearch(std::cbegin(arr), std::cend(arr), x, [](const auto& e) { return e; });
+    auto itr = InterpolationSearch(std::cbegin(arr), std::cend(arr), x,
+		std::less<uint32_t>{},
+		[](uint32_t first, uint32_t last, uint32_t key) -> double { return (double(key) - first) / (last - first); }
+		);
     //auto itr = FibonacciSearch(std::cbegin(arr), std::cend(arr), x, std::less<uint32_t>{});
     if (itr != std::cend(arr)) {
         return std::distance(std::cbegin(arr), itr);
@@ -486,7 +528,7 @@ int main()
 {
     //std::vector<uint32_t> vec = {10, 11, 11, 12, 18, 110, 111};
     //std::vector<uint32_t> vec = {10, 11, 12, 14, 16, 18, 110};
-    std::vector<uint32_t> vec = { 110, 111, 120 };
+    std::vector<uint32_t> vec = { 110, 112, 120, 1341 };
     std::cout << bsearch(vec, 1) << std::endl;
     std::cout << bsearch(vec, 10) << std::endl;
     std::cout << bsearch(vec, 11) << std::endl;

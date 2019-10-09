@@ -451,187 +451,74 @@ size_t fibMonaccianSearch(const std::vector<A*>& arr, int x)
     return -1;
 }
 
-#include <functional> // For std::plus, std::minus
-#include <iterator> // For std::bidirectional_iterator_tag, std::iterator
+#include <iterator>
 
 /**
 * An iterator class capable of navigating across the Fibonacci sequence using
 * a user-specified integer type.
 */
-template <typename Integer, typename Plus = std::plus<Integer>,
-    typename Minus = std::minus<Integer>>
-class FibonacciIterator : public std::iterator<std::bidirectional_iterator_tag,
-                              const Integer> {
+template <typename Integer>
+class FibonacciIterator : public std::iterator<std::bidirectional_iterator_tag, const Integer> {
 public:
-    /**
-		* Constructor: FibonacciIterator(Integer zero = Integer(0),
-		*                                Integer one = Integer(1),
-		*                                Plus p = Plus(), Minus m = Minus())
-		* Usage: FibonacciIterator<int> itr;
-		* --------------------------------------------------------------------------
-		* Constructs a new Fibonacci iterator traversing the Fibonacci sequence
-		* whose first two terms are zero and one and that uses the specified plus
-		* and minus function objects to navigate the sequence.
-		*/
-    // explicit FibonacciIterator(Integer zero = Integer(0),
-    //   Integer one = Integer(1));
-    //Plus p = Plus(), Minus m = Minus());
-    explicit FibonacciIterator(Integer tasrget);
 
-    /**
-		* operator*  () const;
-		* operator-> () const;
-		* Usage: cout << *itr << endl;
-		* --------------------------------------------------------------------------
-		* Dereferences and returns the current integer in the sequence.  You should
-		* not modify the values returned as they are not guaranteed to be valid
-		* after the iterator advances.  Moreover, you should not hold pointers or
-		* references to these values, as the memory will be recycled after the
-		* iterator is incremented or decremented.
-		*/
-    const Integer& operator*() const;
-    const Integer* operator->() const;
+    explicit FibonacciIterator() : curr(0), next(1) { }
 
-    /**
-		* operator++ ();
-		* operator++ (int);
-		* operator-- ();
-		* operator-- (int);
-		* Usage: ++itr; --itr; itr++; itr--;
-		* --------------------------------------------------------------------------
-		* Moves the iterator one step forward or backward in the Fibonacci sequence.
-		* If integer overflow occurs, the results depend on the type of the integer
-		* being used as a counter.  If the iterator is backed up while at 0, the
-		* results are mathematically well-defined but depend on the underlying type
-		* of the integer for correctness.
-		*/
-    FibonacciIterator& operator++();
-    const FibonacciIterator operator++(int);
+    explicit FibonacciIterator(Integer target) : curr(0), next(1)
+    {
+        while (next <= target) {
+            next = curr + next;
+            curr = next - curr;
+        }
+    }
 
-    FibonacciIterator& operator--();
-    const FibonacciIterator operator--(int);
+
+    const Integer& operator*() const { return curr; }
+
+    const Integer* operator->() const { return &**this; }
+
+    FibonacciIterator& operator++()
+    {
+        next = curr + next;
+        curr = next - curr;
+        return *this;
+    }
+
+    const FibonacciIterator operator++(int)
+    {
+        FibonacciIterator result = *this;
+        ++*this;
+        return result;
+    }
+
+    FibonacciIterator& operator--()
+    {
+        curr = next - curr;
+        next = next - curr;
+        return *this;
+    }
+
+    const FibonacciIterator operator--(int)
+    {
+        FibonacciIterator result = *this;
+        --*this;
+        return result;
+    }
 
 private:
-    /* The current and next Fibonacci values in the sequence. */
-    Integer curr, next;
-
-    /* The plus and minus operators. */
-    //Plus plus;
-    //Minus minus;
+    Integer curr;
+    Integer next;
 };
 
 /* Comparison functions for FibonacciIterator. */
-template <typename Integer, typename Plus, typename Minus>
-constexpr bool operator==(const FibonacciIterator<Integer, Plus, Minus>& lhs,
-    const FibonacciIterator<Integer, Plus, Minus>& rhs);
-template <typename Integer, typename Plus, typename Minus>
-constexpr bool operator!=(const FibonacciIterator<Integer, Plus, Minus>& lhs,
-    const FibonacciIterator<Integer, Plus, Minus>& rhs);
-
-/* * * * * Implementation Below This Point * * * * */
-
-/* Constructor sets up the internal fields based on the parameters. */
-//template <typename Integer, typename Plus, typename Minus>
-//FibonacciIterator<Integer, Plus, Minus>::FibonacciIterator(Integer zero,
-//Integer one
-//Plus plus,
-//    Minus minus
-//)
-//  : curr(zero)
-//, next(one)
-//, plus(plus)
-//, minus(minus)
-//{
-// Handled in initializer list.
-///}
-
-template <typename Integer, typename Plus, typename Minus>
-FibonacciIterator<Integer, Plus, Minus>::FibonacciIterator(Integer target)
-    : curr(0)
-    , next(1)
+template <typename Integer>
+constexpr bool operator==(const FibonacciIterator<Integer>& lhs, const FibonacciIterator<Integer>& rhs)
 {
-    //Integer newNext = curr + next;
-    //Integer newNext;
-    while (next <= target) {
-        //newNext = curr + next;
-        //curr = next;
-        //next = newNext;
-
-        next = curr + next;
-        curr = next - curr;
-    }
-}
-
-/* Dereferencing to a value just returns the current value in the sequence. */
-template <typename Integer, typename Plus, typename Minus>
-const Integer& FibonacciIterator<Integer, Plus, Minus>::operator*() const
-{
-    return curr;
-}
-template <typename Integer, typename Plus, typename Minus>
-const Integer* FibonacciIterator<Integer, Plus, Minus>::operator->() const
-{
-    return &**this;
-}
-
-/* Incrementing the Fibonacci iterator walks forward one step in the Fibonacci
-* series.
-*/
-template <typename Integer, typename Plus, typename Minus>
-FibonacciIterator<Integer, Plus, Minus>&
-FibonacciIterator<Integer, Plus, Minus>::operator++()
-{
-    //Integer newNext = curr + next;
-    //curr = next;
-    //next = newNext;
-    next = curr + next;
-    curr = next - curr;
-
-    return *this;
-}
-template <typename Integer, typename Plus, typename Minus>
-const FibonacciIterator<Integer, Plus, Minus>
-FibonacciIterator<Integer, Plus, Minus>::operator++(int)
-{
-    FibonacciIterator result = *this;
-    ++*this;
-    return result;
-}
-
-/* Decrementing the Fibonacci iterator backs it up one step in the sequence. */
-template <typename Integer, typename Plus, typename Minus>
-FibonacciIterator<Integer, Plus, Minus>&
-FibonacciIterator<Integer, Plus, Minus>::operator--()
-{
-    //Integer prev = next  - curr;
-    //next = curr;
-    //curr = prev;
-    curr = next - curr;
-    next = next - curr;
-
-    return *this;
-}
-template <typename Integer, typename Plus, typename Minus>
-const FibonacciIterator<Integer, Plus, Minus>
-FibonacciIterator<Integer, Plus, Minus>::operator--(int)
-{
-    FibonacciIterator result = *this;
-    --*this;
-    return result;
-}
-
-/* Equality comparisons just check if the two values are equal. */
-template <typename Integer, typename Plus, typename Minus>
-constexpr bool operator==(const FibonacciIterator<Integer, Plus, Minus>& lhs,
-    const FibonacciIterator<Integer, Plus, Minus>& rhs)
-{
-    return lhs.curr == rhs.curr; //    &&lhs.next == rhs.next;
+    return lhs.curr == rhs.curr;
 }
 
 /* Disequality implemented in terms of equality. */
-template <typename Integer, typename Plus, typename Minus>
-constexpr bool operator!=(const FibonacciIterator<Integer, Plus, Minus>& lhs,
-    const FibonacciIterator<Integer, Plus, Minus>& rhs)
+template <typename Integer>
+bool operator!=(const FibonacciIterator<Integer>& lhs, const FibonacciIterator<Integer>& rhs)
 {
     return !(lhs == rhs);
 }
@@ -767,42 +654,179 @@ overload_set<F1, F2> overload(F1 f1, F2 f2)
     return overload_set<F1, F2>(f1, f2);
 }
 
-template <typename RandomIterator, typename Value, typename Converter>
-RandomIterator InterpolationSearch(RandomIterator begin, RandomIterator end, Value key, Converter conv)
+template <typename RandomIterator, typename Value, typename Comparator, typename Converter>
+RandomIterator InterpolationSearch(RandomIterator begin, RandomIterator end, Value key, Comparator comp, Converter conv)
 {
     using difference_type = std::iterator_traits<RandomIterator>::difference_type;
-    RandomIterator last = std::prev(end);
-    difference_type count = std::distance(begin, end);
+
+	difference_type count = std::distance(begin, end);
+
+	//RandomIterator last = std::prev(end);
 
     while (count > 0) {
-
-        auto s = conv(*begin);
-        if (!(s < key)) {
-            return !(key < s) ? begin : end;
+		
+        if (!comp(*begin, key)) {
+            begin = !comp(key, *begin) ? begin : end;
+			break;
         }
-        auto e = conv(*last);
-        if (!(key < e)) {
-            return !(e < key) ? last : end;
+		/*
+        if (!comp(key, *(end - 1))) {
+            begin = !comp(*(end - 1), key) ? (end -1) : end;
+			break;
         }
-        
-        difference_type probe = (double(key) - s) * (count - 1) / (e - s);
-        //difference_type probe = std::distance(begin, end) >> 1;
+		*/
+		difference_type probe = conv(*begin, *(end -1), key) * (count - 1);
+		/*
+		if (comp(key, begin[probe])) {
+			std::advance(last, probe - count);
+			count = probe;
+		} else if (comp(begin[probe], key)) {
+			std::advance(begin, ++probe);
+			count -= probe;
+		} else {
+			end = std::next(begin, probe);
+			break;
+		}
+		*/
+		/*
+		if (comp(key, begin[probe])) {
+			probe = count >> 1;
+			if (!comp(key, begin[probe])) {
+				std::advance(begin, probe);
+				count -= probe;
+			} else {
+				last = begin + --probe;
+				//count = std::distance(begin, last);
+				count -= count - probe;
+			}
+		} else if (comp(begin[probe], key)) {
+			probe = count >> 1;
+			if (!comp(begin[probe], key)) {
+				last = begin + probe;
+				//count = std::distance(begin, last);
+				count -= count - probe;
+			} else {
+				std::advance(begin, ++probe);
+				count -= probe;
+			}
+			*/
+		/*
+		if (comp(key, begin[probe])) {
+			probe = count >> 1;
+			if (!comp(key, begin[probe])) {
+				std::advance(begin, probe);
+				count -= probe;
+			} else {
+				std::advance(last, probe - count);
+				count = probe;
+			}
+		} else if (comp(begin[probe], key)) {
+			probe = count >> 1;
+			if (!comp(begin[probe], key)) {
+				std::advance(last, probe - count);
+				count = probe;
+			} else {
+				std::advance(begin, ++probe);
+				count -= probe;
+			}
+		} else {
+			end = std::next(begin, probe);
+			break;
+		}*/
+		if (comp(key, begin[probe])) {
+			probe = count >> 1;
+			if (!comp(key, begin[probe])) {
+				std::advance(begin, probe);
+				count -= probe;
+			} else {
+				std::advance(end, probe - count);
+				count = probe;
+			}
+		} else if (comp(begin[probe], key)) {
+			probe = count >> 1;
+			if (!comp(begin[probe], key)) {
+//				end = begin + probe;
+//				count = std::distance(begin, end);;
 
-        auto p = conv(begin[probe]);
-
-        if (p < key) {
-            std::advance(begin, ++probe);
-            count -= probe;
-        } else if (key < p) {
-            std::advance(last, probe - count);
-            count = probe;
-        } else {
-            std::advance(begin, probe);
-            return begin;
-        }
+				std::advance(end, probe - count);
+				count = probe;
+			} else {
+				std::advance(begin, ++probe);
+				count -= probe;
+			}
+		} else {
+			std::advance(begin, probe);
+			break;
+		}
     }
-    return end;
+    return begin;
 }
+
+template <typename RandomIterator, typename Value, typename Comparator, typename Converter>
+RandomIterator HybridInterpolationSearch(RandomIterator begin, RandomIterator end, Value key, Comparator comp, Converter lerp)
+{
+	using difference_type = std::iterator_traits<RandomIterator>::difference_type;
+
+	difference_type count = std::distance(begin, end);
+
+#ifdef NDEBUG
+	RandomIterator last = std::prev(end);
+#else
+	RandomIterator last = count ? std::prev(end) : end;
+#endif
+	while (count > 0) {
+
+		if (!comp(*begin, key)) {
+			end = !comp(key, *begin) ? begin : end;
+			break;
+		}
+
+		if (!comp(key, *last)) {
+			end = !comp(*last, key) ? last : end;
+			break;
+		}
+
+		difference_type probe = static_cast<difference_type>(lerp(*begin, *last, key) * (count - 1));
+
+		if (comp(key, begin[probe])) {
+			difference_type mid = (count - probe) >> 1;
+			if (!comp(key, begin[mid])) {
+				std::advance(begin, mid);
+				std::advance(last, probe - count);
+				count = (probe - mid);
+			} else {
+				std::advance(last, mid - count);
+				count = mid;
+			}
+		} else if (comp(begin[probe], key)) {
+			/*
+			probe = count >> 1;
+			if (!comp(begin[probe], key)) {
+				std::advance(last, probe - count);
+				count = probe;
+			} else {
+				std::advance(begin, ++probe);
+				count -= probe;
+			}
+			*/
+			probe = count >> 1;
+			if (!comp(key, begin[probe])) {
+				std::advance(begin, probe);
+				count -= probe;
+			} else {
+				std::advance(last, probe - count);
+				count = probe;
+			}
+
+		} else {
+			end = std::next(begin, probe);
+			break;
+		}
+
+	}
+	return end;
+}
+
 
 size_t interpolationSearch(const std::vector<A*>& arr, int x)
 {
@@ -841,16 +865,20 @@ BENCHMARK_DEFINE_F(VectorSearchFixture, int_search)
 (benchmark::State& state)
 {
     uint64_t sum {}, itr {};
+	//records_ // (double(key) - conv(*begin)) * (count - 1) / (conv(*last) - conv(*begin));
     for (auto _ : state) {
         auto rid = searches_[(searches_.size() - ++itr) % searches_.size()];
-        auto low = InterpolationSearch(std::cbegin(records_), std::cend(records_), rid, [](const A* e) { return e->GetId(); });
-        if (low != std::cend(records_)) {
+		auto low = HybridInterpolationSearch(std::cbegin(records_), std::cend(records_), rid,
+			Comp{},
+			[](const A* first, const A* last, uint32_t key) -> double { return (double(key) - first->GetId()) / (last->GetId() - first->GetId()); });
+			//[](const A* e) { return e->GetId(); });
+
+        if (low != std::cend(records_) && (*low)->GetId() == rid) {
             benchmark::DoNotOptimize(sum += (*low)->id_);
         }
     }
 }
-BENCHMARK_REGISTER_F(VectorSearchFixture, int_search)->RangeMultiplier(0xF + 1)->Range(0xF + 1, 0xFFFFFF + 1);
-//->Complexity()->MinTime(15);
+BENCHMARK_REGISTER_F(VectorSearchFixture, int_search)->RangeMultiplier(0xF + 1)->Range(0xF + 1, 0xFFFFFF + 1)->Complexity()->MinTime(15);
 
 BENCHMARK_DEFINE_F(VectorSearchFixture, fib3_search)
 (benchmark::State& state)
@@ -874,7 +902,7 @@ BENCHMARK_DEFINE_F(VectorSearchFixture, fib3_search)
         }
     }
 }
-BENCHMARK_REGISTER_F(VectorSearchFixture, fib3_search)->RangeMultiplier(0xF + 1)->Range(0xF + 1, 0xFFFFFF + 1);
+//BENCHMARK_REGISTER_F(VectorSearchFixture, fib3_search)->RangeMultiplier(0xF + 1)->Range(0xF + 1, 0xFFFFFF + 1);
 //->Complexity()->MinTime(10);
 
 BENCHMARK_DEFINE_F(VectorSearchFixture, int2_search)
