@@ -442,10 +442,13 @@ RandomIterator InterpolationSearch(RandomIterator begin, RandomIterator end, Val
 
 	difference_type count = std::distance(begin, end);
 
-	//RandomIterator last = std::prev(end);
-
+#ifdef NDEBUG
+	RandomIterator last = std::prev(end);
+#else
+	RandomIterator last = count ? std::prev(end) : end;
+#endif
 	while (count > 0) {
-		/*
+
 		if (!comp(*begin, key)) {
 			end = !comp(key, *begin) ? begin : end;
 			break;
@@ -456,54 +459,64 @@ RandomIterator InterpolationSearch(RandomIterator begin, RandomIterator end, Val
 			break;
 		}
 
-		difference_type probe = lerp(*begin, *last, key) * (count - 1);
+		difference_type probe = static_cast<difference_type>((count - 1) * lerp(*begin, *last, key));
 
 		if (comp(key, begin[probe])) {
-			std::advance(last, probe - count);
-			count = probe;
-		} else if (comp(begin[probe], key)) {
-			std::advance(begin, ++probe);
+
+			//probe -= count;
+			//std::advance(last, probe - count);
+			//count = probe;
+
+			/*/
+			probe = count >> 1;
+			if (!comp(key, begin[probe])) {
 			count -= probe;
-		} else {
-			end = std::next(begin, probe);
-			break;
-		}
-		*/
-		//s++;
-
-		if (!comp(*begin, key)) {
-			end = !comp(key, *begin) ? begin : end;
-			break;
-		}
-
-		if (!comp(key, *(end - 1))) {
-			end = !comp(*(end -1), key) ? (end - 1) : end;
-			break;
-		}
-
-		difference_type probe = lerp(*begin, *(end - 1), key) * (count - 1);
-		if (comp(key, begin[probe])) {
+			std::advance(begin, probe);
+			} else {
+			probe -= count;
+			std::advance(last, probe);
+			count += probe;
+			}
+			/*/
 			probe = count >> 1;
 			if (!comp(key, begin[probe])) {
 				std::advance(begin, probe);
 				count -= probe;
 			} else {
-				std::advance(end, probe - count);
+				std::advance(last, probe - count);
 				count = probe;
 			}
+			//*/
 		} else if (comp(begin[probe], key)) {
+			//count -= ++probe;
+			//std::advance(begin, probe);
+
+			/*/
 			probe = count >> 1;
-			if (!comp(begin[probe], key)) {
-				std::advance(end, probe - count);
-				count = probe;
+			if (!comp(key, begin[probe])) {
+			count -= probe;
+			std::advance(begin, probe);
 			} else {
-				std::advance(begin, ++probe);
-				count -= probe;
+			probe -= count;
+			std::advance(last, probe);
+			count += probe;
 			}
+			/*/
+			probe = count >> 1;
+			if (!comp(key, begin[probe])) {
+				std::advance(begin, probe);
+				count -= probe;
+			} else {
+				std::advance(last, probe - count);
+				count = probe;
+			}
+			//*/
 		} else {
-			end = std::next(begin, probe);
+			end = begin;
+			std::advance(end, probe);
 			break;
 		}
+
 	}
 	return end;
 }
@@ -528,7 +541,7 @@ int main()
 {
     //std::vector<uint32_t> vec = {10, 11, 11, 12, 18, 110, 111};
     //std::vector<uint32_t> vec = {10, 11, 12, 14, 16, 18, 110};
-    std::vector<uint32_t> vec = { 110, 112, 120, 1341 };
+    std::vector<uint32_t> vec = { 111, 113};
     std::cout << bsearch(vec, 1) << std::endl;
     std::cout << bsearch(vec, 10) << std::endl;
     std::cout << bsearch(vec, 11) << std::endl;
@@ -540,6 +553,7 @@ int main()
     std::cout << bsearch(vec, 120) << std::endl;
     std::cout << bsearch(vec, 111) << std::endl;
     std::cout << bsearch(vec, 112) << std::endl;
+	std::cout << "finish " << std::endl;
     while (1) {
         for (FibonacciIterator<uint32_t> itr(0); *itr < 500000000; ++itr) {
             std::vector<uint32_t> vec(*itr, 0);

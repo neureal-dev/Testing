@@ -60,6 +60,21 @@ RandomIterator InterpolationSearch(RandomIterator begin, RandomIterator end, Val
 	return end;
 }
 
+template <class ForwardIt, typename Value, typename Comparator>
+inline ForwardIt BranchLessBinarySearch(ForwardIt begin, ForwardIt end, const Value& key, Comparator comp)
+{
+	using difference_type = std::iterator_traits<ForwardIt>::difference_type;
+	difference_type size = std::distance(begin, end);
+
+	while (difference_type half = size >> 1) {
+		if (!comp(key, begin[half])) {
+			std::advance(begin, half);
+		}
+		size = size - half;
+	}
+	return (begin != end && !comp(*begin, key) && !comp(key, *begin)) ? begin : end;
+}
+
 template <typename RandomIterator, typename Value, typename Comparator, typename Converter>
 RandomIterator HybridInterpolationSearch(RandomIterator begin, RandomIterator end, Value key, Comparator comp, Converter lerp)
 {
@@ -84,10 +99,48 @@ RandomIterator HybridInterpolationSearch(RandomIterator begin, RandomIterator en
 			break;
 		}
 
-		difference_type probe = static_cast<difference_type>(lerp(*begin, *last, key) * (count - 1));
+		difference_type probe = static_cast<difference_type>((count - 1) * lerp(*begin, *last, key));
 
 		if (comp(key, begin[probe])) {
-			//*/
+			//probe -= count;
+			//std::advance(last, probe);
+			//count += probe;
+
+			//if (comp(key, begin[probe])) {
+			//	probe -= count;
+			//	std::advance(last, probe);
+			//	count += probe;
+
+			//	probe = count >> 1;
+			//	if (!comp(key, begin[probe])) {
+			//		count -= probe;
+			//		std::advance(begin, probe);
+			//	} else {
+			//		probe -= count;
+			//		std::advance(last, probe);
+			//		count += probe;
+			//	}
+			/*} else if (comp(begin[probe], key)) {
+				count -= ++probe;
+				std::advance(begin, probe);
+
+				probe = count >> 1;
+				if (!comp(key, begin[probe])) {
+					count -= probe;
+					std::advance(begin, probe);
+				} else {
+					probe -= count;
+					std::advance(last, probe);
+					count += probe;
+				}
+			} else {
+				end = begin;
+				std::advance(end, probe);
+				break;
+			}
+			*/
+
+			/*/
 			difference_type mid = (count - probe) >> 1;
 			if (!comp(key, begin[mid])) {
 				std::advance(begin, mid);
@@ -108,6 +161,15 @@ RandomIterator HybridInterpolationSearch(RandomIterator begin, RandomIterator en
 			}
 			//*/
 		} else if (comp(begin[probe], key)) {
+			probe = count >> 1;
+			if (!comp(key, begin[probe])) {
+				std::advance(begin, probe);
+				count -= probe;
+			} else {
+				std::advance(last, probe - count);
+				count = probe;
+			}
+			/*
 			difference_type mid = probe + (count - probe) >> 1;
 			if (!comp(key, begin[mid])) {
 				std::advance(begin, mid);
@@ -119,7 +181,7 @@ RandomIterator HybridInterpolationSearch(RandomIterator begin, RandomIterator en
 				std::advance(last, mid - count);
 				count = mid - probe;
 			}
-
+			*/
 			/*
 			difference_type mid = probe + (count - probe) >> 1;
 			if (!comp(begin[mid], key)) {
@@ -270,7 +332,7 @@ RandomIterator HHybridInterpolationSearch(RandomIterator begin, RandomIterator e
 			end = std::next(begin, probe);
 			break;
 		}
-
+		
 /*
 		if (comp(key, begin[probe])) {
 			std::advance(last, probe - count);
@@ -554,9 +616,8 @@ static void BM_SomeFunction(benchmark::State& state)
 		//benchmark::DoNotOptimize(
 		//auto a = FibonacciSearch(std::cbegin(vect), std::cend(vect), vecn[++i % vecn.size()], Comp{});
 		//auto r = HybridSearch(vect, vecn[++i % vecn.size()]);
-		auto a = HybridInterpolationSearch(std::cbegin(vect), std::cend(vect), vecn[++i % vecn.size()],
-			Comp{},
-			[](A* first, A* last, uint32_t key) { return double(key - first->id_) / double(last->id_ - first->id_); });
+		//auto a = BranchLessBinarySearch(std::cbegin(vect), std::cend(vect), vecn[++i % vecn.size()],Comp{});
+		auto a = HybridInterpolationSearch(std::cbegin(vect), std::cend(vect), vecn[++i % vecn.size()], Comp{}, [](A* first, A* last, uint32_t key) { return double(key - first->id_) / double(last->id_ - first->id_); });
 		//if (r < vecn.size()) {
 		if (a != std::end(vect)) {
 			if ((*a)->id_ != vecn[i % vecn.size()])
