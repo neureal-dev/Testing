@@ -40,7 +40,7 @@ public:
         //std::cout << searches_.size() << std::endl;
         //records_ = std::vector<A*>(state.range_x());
         //searches_ = std::vector<uint32_t>(state.range_x(), 0);
-        benchmark::DoNotOptimize(records_.data());
+        //benchmark::DoNotOptimize(records_.data());
 
         //for (int64_t i = state.range_x() - 1; i >= 0; --i) {
         //    records_[i] = new A(i + i + 65535);
@@ -53,8 +53,9 @@ public:
             std::mt19937 rng;
             rng.seed(std::random_device()());
             
-			//std::uniform_real_distribution<> distribution(0.0, 10.0);
-			std::normal_distribution<double> distribution(5.0, 2.0);
+			//std::uniform_real_distribution<double> distribution(0.0, 10.0);
+			//std::normal_distribution<double> distribution(5.0, 3.0);
+            std::exponential_distribution<double> distribution(3.5);
 
             for (int i = 0; i < state.range_x(); ++i) {
                 double number = distribution(rng);
@@ -71,7 +72,8 @@ public:
 				//std::cout << state.range_x() << " "<< s << std::endl;
 				records_.push_back(new A(s));
 			}
-			std::sort(std::begin(searches_), std::end(searches_));
+            //sorting searches increasing cache hits
+			//std::sort(std::begin(searches_), std::end(searches_));
 
             //for (int64_t i = searches_.size(); i > strt; ) {
 //            for (int64_t i = searches_.size(), j = strt; i > j && i > strt; --i) {
@@ -747,7 +749,7 @@ RandomIterator InterpolationSearch(RandomIterator begin, RandomIterator end, Val
 			break;
 		}
 
-		difference_type probe = static_cast<difference_type>(lerp(*begin, *last, key) * (count - 1));
+        difference_type probe = static_cast<difference_type>((count - 1) * lerp(*begin, *last, key));
 
 		if (comp(key, begin[probe])) {
 			probe -= count;
