@@ -30,8 +30,14 @@ public:
     uint64_t id1_;
     uint64_t id2_;
     //uint64_t id3_;
-    std::array<uint64_t, 20> id4_;
+    //std::array<uint64_t, 32> id4_;
 };
+
+struct Comp {
+    inline bool operator()(const A* s, uint32_t i) const noexcept { return s->GetId() < i; }
+    inline bool operator()(uint32_t i, const A* s) const noexcept { return i < s->GetId(); }
+};
+
 
 class VectorSearchFixture : public benchmark::Fixture {
 public:
@@ -53,10 +59,10 @@ public:
             std::mt19937 rng;
             rng.seed(std::random_device()());
             
-			/*
+			//*/
 			//std::uniform_real_distribution<double> distribution(0.0, 10.0);
 			//std::normal_distribution<double> distribution(5.0, 3.0);
-            //std::exponential_distribution<double> distribution(3.5);
+            std::exponential_distribution<double> distribution(3.5);
 
             for (int i = 0; i < state.range_x(); ++i) {
                 double number = distribution(rng);
@@ -66,16 +72,16 @@ public:
 					searches_[i] = static_cast<uint64_t>(number);
 				}
             }
-			*/
+			/*/
 			std::uniform_int_distribution<uint64_t> distribution(0, state.range_x());
 			for (int i = 0; i < state.range_x(); ++i) {
 				searches_[i] = static_cast<uint64_t>(distribution(rng));
 			}
-
+            //*/
 			auto tmp = searches_;
 			std::partial_sort_copy(std::begin(searches_), std::end(searches_), std::begin(tmp), std::end(tmp));
 			tmp.erase(std::unique(std::begin(tmp), std::end(tmp)), std::end(tmp));
-			std::sort(std::begin(tmp), std::end(tmp));
+			//std::sort(std::begin(tmp), std::end(tmp));
 			for (auto s : tmp) {
 				//std::cout << state.range_x() << " "<< s << std::endl;
 				records_.push_back(new A(s));
@@ -110,6 +116,399 @@ public:
     std::vector<A*> records_;
     std::vector<uint32_t> searches_;
 };
+
+
+template <typename RandomIterator, typename Value, typename Comparator, typename Converter>
+RandomIterator HybriddddInterpolationSearch(RandomIterator begin, RandomIterator end, Value key, Comparator comp, Converter lerp)
+{
+    using difference_type = std::iterator_traits<RandomIterator>::difference_type;
+
+    difference_type count = std::distance(begin, end);
+
+#ifdef NDEBUG
+    RandomIterator last = std::prev(end);
+#else
+    RandomIterator last = count ? std::prev(end) : end;
+#endif
+    while (count > 0) {
+
+        if (!comp(*begin, key)) {
+            end = !comp(key, *begin) ? begin : end;
+            break;
+        }
+
+        if (!comp(key, *last)) {
+            end = !comp(*last, key) ? last : end;
+            break;
+        }
+
+        difference_type probe = static_cast<difference_type>((count - 1) * lerp(*begin, *last, key));
+
+        if (comp(key, begin[probe])) {
+
+            //probe -= count;
+            //std::advance(last, probe - count);
+            //count = probe;
+
+            /*/
+			probe = count >> 1;
+			if (!comp(key, begin[probe])) {
+				count -= probe;
+				std::advance(begin, probe);
+			} else {
+				probe -= count;
+				std::advance(last, probe);
+				count += probe;
+			}
+			/*/
+            probe = count >> 1;
+            if (!comp(key, begin[probe])) {
+                std::advance(begin, probe);
+                count -= probe;
+            } else {
+                std::advance(last, probe - count);
+                count = probe;
+            }
+            //*/
+        } else if (comp(begin[probe], key)) {
+            //count -= ++probe;
+            //std::advance(begin, probe);
+
+            /*/
+			probe = count >> 1;
+			if (!comp(key, begin[probe])) {
+			count -= probe;
+			std::advance(begin, probe);
+			} else {
+			probe -= count;
+			std::advance(last, probe);
+			count += probe;
+			}
+			/*/
+            probe = count >> 1;
+            if (!comp(key, begin[probe])) {
+                std::advance(begin, probe);
+                count -= probe;
+            } else {
+                std::advance(last, probe - count);
+                count = probe;
+            }
+            //*/
+        } else {
+            end = begin;
+            std::advance(end, probe);
+            break;
+        }
+    }
+    return end;
+}
+/**
+* Implementation of Hybrid Interpolation search to optimize access path for number ordered arrarys
+*/
+template <typename RandomIterator, typename Value, typename Comparator, typename Converter>
+RandomIterator HybridInterpolationSearch(RandomIterator begin, RandomIterator end, Value key, Comparator comp, Converter lerp)
+{
+    using difference_type = std::iterator_traits<RandomIterator>::difference_type;
+
+    difference_type count = std::distance(begin, end);
+
+#ifdef NDEBUG
+    RandomIterator last = std::prev(end);
+#else
+    RandomIterator last = count ? std::prev(end) : end;
+#endif
+
+    while (count > 0) {
+
+        if (!comp(*begin, key)) {
+            end = !comp(key, *begin) ? begin : end;
+            break;
+        }
+
+        if (!comp(key, *last)) {
+            end = !comp(*last, key) ? last : end;
+            break;
+        }
+
+        auto probe = static_cast<difference_type>((count - 1) * lerp(*begin, *last, key));
+
+        if (comp(key, begin[probe])) {
+            auto mid = probe >> 1;
+            if (!comp(key, begin[mid])) {
+                std::advance(last, probe - count);
+                count = probe - mid;
+                std::advance(begin, mid);
+            } else {
+                std::advance(last, mid - count);
+                count = mid;
+            }
+        } else if (comp(begin[probe], key)) {
+            auto mid = (probe + count) >> 1;
+            if (!comp(key, begin[mid])) {
+                std::advance(begin, mid);
+                count -= mid;
+            } else {
+                std::advance(last, mid - count);
+                count = mid - probe;
+                std::advance(begin, probe);
+            }
+        } else {
+            end = begin;
+            std::advance(end, probe);
+            break;
+        }
+    }
+    return end;
+}
+
+/**
+* Implementation of Interpolation search to optimize access path for number ordered arrarys
+*/
+template <typename RandomIterator, typename Value, typename Comparator, typename Converter>
+RandomIterator InterpolationSearch(RandomIterator begin, RandomIterator end, Value key, Comparator comp, Converter lerp)
+{
+    using difference_type = std::iterator_traits<RandomIterator>::difference_type;
+
+    difference_type count = std::distance(begin, end);
+
+#ifdef NDEBUG
+    RandomIterator last = std::prev(end);
+#else
+    RandomIterator last = count ? std::prev(end) : end;
+#endif
+
+    while (count > 0) {
+
+        if (!comp(*begin, key)) {
+            end = !comp(key, *begin) ? begin : end;
+            break;
+        }
+
+        if (!comp(key, *last)) {
+            end = !comp(*last, key) ? last : end;
+            break;
+        }
+
+        difference_type probe = static_cast<difference_type>((count - 1) * lerp(*begin, *last, key));
+
+        if (comp(key, begin[probe])) {
+            std::advance(last, probe - count);
+            count = probe;
+        } else if (comp(begin[probe], key)) {
+            std::advance(begin, ++probe);
+            count -= probe;
+        } else {
+            end = std::next(begin, probe);
+            break;
+        }
+    }
+    return end;
+}
+
+template <typename Integer>
+class FibonacciIterator : public std::iterator<std::bidirectional_iterator_tag, const Integer> {
+public:
+    explicit FibonacciIterator()
+        : curr(0)
+        , next(1)
+    {
+    }
+
+    explicit FibonacciIterator(Integer target)
+        : curr(0)
+        , next(1)
+    {
+        while (next <= target) {
+            next = curr + next;
+            curr = next - curr;
+        }
+    }
+
+    const Integer& operator*() const { return curr; }
+
+    const Integer* operator->() const { return &**this; }
+
+    FibonacciIterator& operator++()
+    {
+        next = curr + next;
+        curr = next - curr;
+        return *this;
+    }
+
+    const FibonacciIterator operator++(int)
+    {
+        FibonacciIterator result = *this;
+        ++*this;
+        return result;
+    }
+
+    FibonacciIterator& operator--()
+    {
+        curr = next - curr;
+        next = next - curr;
+        return *this;
+    }
+
+    const FibonacciIterator operator--(int)
+    {
+        FibonacciIterator result = *this;
+        --*this;
+        return result;
+    }
+
+private:
+    Integer curr;
+    Integer next;
+};
+
+/* Comparison functions for FibonacciIterator. */
+template <typename Integer>
+constexpr bool operator==(const FibonacciIterator<Integer>& lhs, const FibonacciIterator<Integer>& rhs)
+{
+    return lhs.curr == rhs.curr;
+}
+
+/* Disequality implemented in terms of equality. */
+template <typename Integer>
+bool operator!=(const FibonacciIterator<Integer>& lhs, const FibonacciIterator<Integer>& rhs)
+{
+    return !(lhs == rhs);
+}
+
+/**
+* Implementation of Fibonacci search uses a Fibonacci iterator to access
+* the consecutive Fibonacci numbers
+*/
+template <typename RandomIterator, typename Value, typename Comparator>
+RandomIterator FibonacciSearch(RandomIterator begin, RandomIterator end,
+    const Value& key, Comparator comp)
+{
+    using difference_type = std::iterator_traits<RandomIterator>::difference_type;
+
+    FibonacciIterator<difference_type> itr(std::distance(begin, end));
+
+    while (*itr > 0) {
+
+        if (comp(key, begin[*itr - 1])) {
+            --itr;
+        } else if (comp(begin[*itr - 1], key)) {
+            std::advance(begin, *itr);
+            do {
+                --itr;
+            } while (*itr > std::distance(begin, end));
+        } else {
+            std::advance(begin, *itr - 1);
+            return begin;
+        }
+    }
+    return (begin != end && !(comp(*begin, key)) && !(comp(key, *begin))) ? begin : end;
+}
+
+
+template <class ForwardIt, typename Value, typename Comparator>
+ForwardIt BranchLessBinarySearch(ForwardIt begin, ForwardIt end, const Value& key, Comparator comp)
+{
+    using difference_type = std::iterator_traits<ForwardIt>::difference_type;
+    difference_type size = std::distance(begin, end);
+
+    while (difference_type half = size >> 1) {
+        if (!comp(key, begin[half])) {
+            std::advance(begin, half);
+        }
+        size = size - half;
+    }
+    return (begin != end && !comp(*begin, key) && !comp(key, *begin)) ? begin : end;
+}
+
+
+BENCHMARK_DEFINE_F(VectorSearchFixture, HybridInterpolationIt)
+(benchmark::State& state)
+{
+    uint64_t sum {}, itr {};
+    for (auto _ : state) {
+        auto rid = searches_[(searches_.size() - ++itr) % searches_.size()];
+        auto low = InterpolationSearch(std::cbegin(records_), std::cend(records_), rid, Comp {},
+            [](const A* first, const A* last, uint32_t key) -> double { return (double(key) - first->GetId()) / (last->GetId() - first->GetId()); });
+
+        if (low != std::cend(records_)) {
+            if ((*low)->id_ != rid) {
+                std::cout << "error search" << std::endl;
+            }
+            benchmark::DoNotOptimize(sum += (*low)->id_);
+        } else {
+            std::cout << "not found error" << std::endl;
+        }
+    }
+}
+BENCHMARK_REGISTER_F(VectorSearchFixture, HybridInterpolationIt)->RangeMultiplier(0xF + 1)->Range(0xF + 1, 0xFFFFFF + 1)->Complexity();
+
+
+BENCHMARK_DEFINE_F(VectorSearchFixture, InterpolationIt)
+(benchmark::State& state)
+{
+    uint64_t sum {}, itr {};
+    for (auto _ : state) {
+        auto rid = searches_[(searches_.size() - ++itr) % searches_.size()];
+        auto low = InterpolationSearch(std::cbegin(records_), std::cend(records_), rid, Comp {},
+            [](const A* first, const A* last, uint32_t key) -> double { return (double(key) - first->GetId()) / (last->GetId() - first->GetId()); });
+
+        if (low != std::cend(records_)) {
+            if ((*low)->id_ != rid) {
+                std::cout << "error search" << std::endl;
+            }
+            benchmark::DoNotOptimize(sum += (*low)->id_);
+        } else {
+            std::cout << "not found error" << std::endl;
+        }
+    }
+}
+BENCHMARK_REGISTER_F(VectorSearchFixture, InterpolationIt)->RangeMultiplier(0xF + 1)->Range(0xF + 1, 0xFFFFFF + 1)->Complexity();
+
+
+BENCHMARK_DEFINE_F(VectorSearchFixture, FibonacciIt)
+(benchmark::State& state)
+{
+    uint64_t sum {}, itr {};
+    for (auto _ : state) {
+        auto rid = searches_[(searches_.size() - ++itr) % searches_.size()];
+        auto low = FibonacciSearch(std::cbegin(records_), std::cend(records_), rid, Comp {});
+
+        if (low != std::cend(records_)) {
+            if ((*low)->id_ != rid) {
+                std::cout << "error search" << std::endl;
+            }
+            benchmark::DoNotOptimize(sum += (*low)->id_);
+        } else {
+            std::cout << "not found error" << std::endl;
+        }
+    }
+}
+BENCHMARK_REGISTER_F(VectorSearchFixture, FibonacciIt)->RangeMultiplier(0xF + 1)->Range(0xF + 1, 0xFFFFFF + 1)->Complexity();
+
+
+
+BENCHMARK_DEFINE_F(VectorSearchFixture, BranchLessIt)
+(benchmark::State& state)
+{
+    uint64_t sum {}, itr {};
+    for (auto _ : state) {
+        auto rid = searches_[(searches_.size() - ++itr) % searches_.size()];
+        auto low = BranchLessBinarySearch(std::cbegin(records_), std::cend(records_), rid, Comp{});
+
+        if (low != std::cend(records_)) {
+            if ((*low)->id_ != rid) {
+                std::cout << "error search" << std::endl;
+            }
+            benchmark::DoNotOptimize(sum += (*low)->id_);
+        } else {
+            std::cout << "not found error" << std::endl;
+        }
+    }
+}
+BENCHMARK_REGISTER_F(VectorSearchFixture, BranchLessIt)->RangeMultiplier(0xF + 1)->Range(0xF + 1, 0xFFFFFF + 1)->Complexity();
+
+
+
 
 enum locate_t { EQUAL,
     LEFT,
@@ -210,10 +609,6 @@ int lsearch(const std::vector<A*>& records, uint32_t key)
     }
     return -1;
 }
-struct Comp {
-    inline bool operator()(const A* s, uint32_t i) const noexcept { return s->GetId() < i; }
-    inline bool operator()(uint32_t i, const A* s) const noexcept { return i < s->GetId(); }
-};
 
 namespace qb {
 
@@ -234,169 +629,6 @@ inline ForwardIt branch_less_binary_find_n(ForwardIt first, size_t size, const T
 }
 
 
-/**
-* Implementation of Hybrid Interpolation search to optimize access path for number ordered arrarys
-*/
-template <typename RandomIterator, typename Value, typename Comparator, typename Converter>
-RandomIterator HybridInterpolationSearch(RandomIterator begin, RandomIterator end, Value key, Comparator comp, Converter lerp)
-{
-	using difference_type = std::iterator_traits<RandomIterator>::difference_type;
-
-	difference_type count = std::distance(begin, end);
-
-#ifdef NDEBUG
-	RandomIterator last = std::prev(end);
-#else
-	RandomIterator last = count ? std::prev(end) : end;
-#endif
-	while (count > 0) {
-
-		if (!comp(*begin, key)) {
-			end = !comp(key, *begin) ? begin : end;
-			break;
-		}
-
-		if (!comp(key, *last)) {
-			end = !comp(*last, key) ? last : end;
-			break;
-		}
-
-		difference_type probe = static_cast<difference_type>((count - 1) * lerp(*begin, *last, key));
-
-		if (comp(key, begin[probe])) {
-			probe = count >> 1;
-			if (!comp(key, begin[probe])) {
-				std::advance(begin, probe);
-				count -= probe;
-			} else {
-				std::advance(last, probe - count);
-				count = probe;
-			}
-		} else if (comp(begin[probe], key)) {
-			probe = count >> 1;
-			if (!comp(key, begin[probe])) {
-				std::advance(begin, probe);
-				count -= probe;
-			} else {
-				std::advance(last, probe - count);
-				count = probe;
-			}
-		} else {
-			end = begin;
-			std::advance(end, probe);
-			break;
-		}
-	}
-	return end;
-}
-
-/**
-* Implementation of Interpolation search to optimize access path for number ordered arrarys
-*/
-template <typename RandomIterator, typename Value, typename Comparator, typename Converter>
-RandomIterator InterpolationSearch(RandomIterator begin, RandomIterator end, Value key, Comparator comp, Converter lerp)
-{
-	using difference_type = std::iterator_traits<RandomIterator>::difference_type;
-
-	difference_type count = std::distance(begin, end);
-
-#ifdef NDEBUG
-	RandomIterator last = std::prev(end);
-#else
-	RandomIterator last = count ? std::prev(end) : end;
-#endif
-
-	while (count > 0) {
-
-		if (!comp(*begin, key)) {
-			end = !comp(key, *begin) ? begin : end;
-			break;
-		}
-
-		if (!comp(key, *last)) {
-			end = !comp(*last, key) ? last : end;
-			break;
-		}
-
-		difference_type probe = static_cast<difference_type>((count - 1) * lerp(*begin, *last, key));
-
-		if (comp(key, begin[probe])) {
-			std::advance(last, probe - count);
-			count = probe;
-		} else if (comp(begin[probe], key)) {
-			std::advance(begin, ++probe);
-			count -= probe;
-		} else {
-			end = std::next(begin, probe);
-			break;
-		}
-	}
-	return end;
-}
-
-/**
-* Implementation of Fibonacci search uses a Fibonacci iterator to access
-* the consecutive Fibonacci numbers
-*/
-template <typename RandomIterator, typename Value, typename Comparator>
-RandomIterator FibonacciSearch(RandomIterator begin, RandomIterator end,
-	const Value& key, Comparator comp)
-{
-	using difference_type = std::iterator_traits<RandomIterator>::difference_type;
-
-	FibonacciIterator<difference_type> itr(std::distance(begin, end));
-
-	while (*itr > 0) {
-
-		if (comp(key, begin[*itr - 1])) {
-			--itr;
-		} else if (comp(begin[*itr - 1], key)) {
-			std::advance(begin, *itr);
-			do {
-				--itr;
-			} while (*itr > std::distance(begin, end));
-		} else {
-			std::advance(begin, *itr - 1);
-			return begin;
-		}
-	}
-	return (begin != end && !(comp(*begin, key)) && !(comp(key, *begin))) ? begin : end;
-}
-
-
-/**
-* Implementation of Binary search uses branch less logic to access
-* small arrays
-*/
-template <class ForwardIt, typename Value, typename Comparator>
-inline ForwardIt BranchLessBinarySearch(ForwardIt begin, ForwardIt end, const Value& key, Comparator comp)
-{
-	using difference_type = std::iterator_traits<ForwardIt>::difference_type;
-	difference_type size = std::distance(begin, end);
-
-	while (difference_type half = size >> 1) {
-		if (!comp(key, begin[half])) {
-			std::advance(begin, half);
-		}
-		size = size - half;
-	}
-	return (begin != end && !comp(*begin, key) && !comp(key, *begin)) ? begin : end;
-}
-
-template <class ForwardIt, typename Value, typename Comparator>
-inline ForwardIt BranchLessBinarySearch(ForwardIt begin, ForwardIt end, const Value& key, Comparator comp)
-{
-	using difference_type = std::iterator_traits<ForwardIt>::difference_type;
-	difference_type size = std::distance(begin, end);
-
-	while (difference_type half = size >> 1) {
-		if (!comp(key, begin[half])) {
-			std::advance(begin, half);
-		}
-		size = size - half;
-	}
-	return (begin != end && !comp(*begin, key) && !comp(key, *begin)) ? begin : end;
-}
 
 
 template <class ForwardIt, class T>
@@ -438,7 +670,7 @@ inline ForwardIt equal_range(ForwardIt first, ForwardIt last, const T& key)
 
 size_t combine_search(std::vector<A*> const& data, uint32_t const key)
 {
-	auto ind = qb::BranchLessBinarySearch(std::cbegin(data), std::cend(data), key, Comp{});
+	auto ind = BranchLessBinarySearch(std::cbegin(data), std::cend(data), key, Comp{});
 	return ind != std::cend(data)? std::distance(std::cbegin(data), ind) : -1;
 		//auto ind = qb::equal_range(std::cbegin(data), std::cend(data), key);
     //auto ind = std::lower_bound(std::cbegin(data), std::cend(data), key,
@@ -658,71 +890,6 @@ size_t fibMonaccianSearch(const std::vector<A*>& arr, int x)
 * An iterator class capable of navigating across the Fibonacci sequence using
 * a user-specified integer type.
 */
-template <typename Integer>
-class FibonacciIterator : public std::iterator<std::bidirectional_iterator_tag, const Integer> {
-public:
-
-    explicit FibonacciIterator() : curr(0), next(1) { }
-
-    explicit FibonacciIterator(Integer target) : curr(0), next(1)
-    {
-        while (next <= target) {
-            next = curr + next;
-            curr = next - curr;
-        }
-    }
-
-
-    const Integer& operator*() const { return curr; }
-
-    const Integer* operator->() const { return &**this; }
-
-    FibonacciIterator& operator++()
-    {
-        next = curr + next;
-        curr = next - curr;
-        return *this;
-    }
-
-    const FibonacciIterator operator++(int)
-    {
-        FibonacciIterator result = *this;
-        ++*this;
-        return result;
-    }
-
-    FibonacciIterator& operator--()
-    {
-        curr = next - curr;
-        next = next - curr;
-        return *this;
-    }
-
-    const FibonacciIterator operator--(int)
-    {
-        FibonacciIterator result = *this;
-        --*this;
-        return result;
-    }
-
-private:
-    Integer curr;
-    Integer next;
-};
-
-/* Comparison functions for FibonacciIterator. */
-template <typename Integer>
-constexpr bool operator==(const FibonacciIterator<Integer>& lhs, const FibonacciIterator<Integer>& rhs)
-{
-    return lhs.curr == rhs.curr;
-}
-
-/* Disequality implemented in terms of equality. */
-template <typename Integer>
-bool operator!=(const FibonacciIterator<Integer>& lhs, const FibonacciIterator<Integer>& rhs)
-{
-    return !(lhs == rhs);
-}
 
 //#include "FibonacciIterator.hh"
 #include <functional> // For std::less
@@ -732,7 +899,7 @@ bool operator!=(const FibonacciIterator<Integer>& lhs, const FibonacciIterator<I
 * the consecutive Fibonacci numbers as efficiently as possible.
 */
 template <typename RandomIterator, typename Value, typename Comparator>
-RandomIterator FibonacciSearch(RandomIterator begin, RandomIterator end,
+RandomIterator FFibonacciSearch(RandomIterator begin, RandomIterator end,
     const Value& value, Comparator comp)
 {
     /* See what type we use to keep track of iterator distances, then use that
@@ -902,7 +1069,7 @@ RandomIterator FallbackInterpolationSearch(RandomIterator begin, RandomIterator 
 
 
 template <typename RandomIterator, typename Value, typename Comparator, typename Converter>
-RandomIterator InterpolationSearch(RandomIterator begin, RandomIterator end, Value key, Comparator comp, Converter lerp)
+RandomIterator IInterpolationSearch(RandomIterator begin, RandomIterator end, Value key, Comparator comp, Converter lerp)
 {
 	using difference_type = std::iterator_traits<RandomIterator>::difference_type;
 
@@ -1174,7 +1341,7 @@ RandomIterator InterpolationSearch2(RandomIterator begin, RandomIterator end, Va
 }
 
 template <typename RandomIterator, typename Value, typename Comparator, typename Converter>
-RandomIterator HybridInterpolationSearch(RandomIterator begin, RandomIterator end, Value key, Comparator comp, Converter lerp)
+RandomIterator HHHybridInterpolationSearch(RandomIterator begin, RandomIterator end, Value key, Comparator comp, Converter lerp)
 {
 	using difference_type = std::iterator_traits<RandomIterator>::difference_type;
 
