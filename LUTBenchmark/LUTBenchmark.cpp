@@ -14,23 +14,24 @@
 #include <utility>
 #include <vector>
 
-class A {
-public:
+struct A {
+
     A()
         : id_(0)
     {
     }
+
     A(uint32_t id)
         : id_(id)
     {
     }
+
     uint32_t GetId() const { return id_; }
 
     uint32_t id_;
-    uint64_t id1_;
-    uint64_t id2_;
-    //uint64_t id3_;
-    //std::array<uint64_t, 32> id4_;
+    int64_t id1_;
+    int64_t id2_;
+    std::array<int64_t, 32> id4_;
 };
 
 struct Comp {
@@ -38,85 +39,57 @@ struct Comp {
     inline bool operator()(uint32_t i, const A* s) const noexcept { return i < s->GetId(); }
 };
 
+struct VectorSearchFixture : benchmark::Fixture {
 
-class VectorSearchFixture : public benchmark::Fixture {
-public:
     void SetUp(const ::benchmark::State& state)
     {
-        //std::cout << searches_.size() << std::endl;
-        //records_ = std::vector<A*>(state.range_x());
-        //searches_ = std::vector<uint32_t>(state.range_x(), 0);
-        //benchmark::DoNotOptimize(records_.data());
-
-        //for (int64_t i = state.range_x() - 1; i >= 0; --i) {
-        //    records_[i] = new A(i + i + 65535);
-        //}
-
-        if (searches_.size() < state.range_x()) {
-            uint32_t strt = std::max<uint32_t>(searches_.size(), 1);
+        if (state.thread_index == 0 && searches_.size() < state.range_x()) {
             searches_.resize(state.range_x(), 0);
-            benchmark::DoNotOptimize(searches_.data());
+
             std::mt19937 rng;
+
             rng.seed(std::random_device()());
-            
-			//*/
-			//std::uniform_real_distribution<double> distribution(0.0, 10.0);
-			//std::normal_distribution<double> distribution(5.0, 3.0);
-            std::exponential_distribution<double> distribution(3.5);
 
-            for (int i = 0; i < state.range_x(); ++i) {
+            std::uniform_real_distribution<double> distribution(0.0, 10.0);
+            //std::normal_distribution<double> distribution(5.0, 3.0);
+            //std::exponential_distribution<double> distribution(3.5);
+
+            for (size_t i = 0; i < state.range_x(); ++i) {
                 double number = distribution(rng);
-				if (number > 0.0 && number < 10.0) {
-					number /= 10.0;
-					number *= state.range_x();
-					searches_[i] = static_cast<uint64_t>(number);
-				}
+                if (number > 0.0 && number < 10.0) {
+                    searches_[i] = static_cast<uint64_t>((number / 10.0) * state.range_x());
+                }
             }
-			/*/
-			std::uniform_int_distribution<uint64_t> distribution(0, state.range_x());
-			for (int i = 0; i < state.range_x(); ++i) {
-				searches_[i] = static_cast<uint64_t>(distribution(rng));
-			}
-            //*/
-			auto tmp = searches_;
-			std::partial_sort_copy(std::begin(searches_), std::end(searches_), std::begin(tmp), std::end(tmp));
-			tmp.erase(std::unique(std::begin(tmp), std::end(tmp)), std::end(tmp));
-			//std::sort(std::begin(tmp), std::end(tmp));
-			for (auto s : tmp) {
-				//std::cout << state.range_x() << " "<< s << std::endl;
-				records_.push_back(new A(s));
-			}
-            //sorting searches increasing cache hits
-			//std::sort(std::begin(searches_), std::end(searches_));
 
-            //for (int64_t i = searches_.size(); i > strt; ) {
-//            for (int64_t i = searches_.size(), j = strt; i > j && i > strt; --i) {
-//                searches_[i - 1] = uniform_dist(rng) % (j * 16);
-            //}
-            //}
+            auto tmp = searches_;
+
+            std::partial_sort_copy(std::begin(searches_), std::end(searches_), std::begin(tmp), std::end(tmp));
+
+            tmp.erase(std::unique(std::begin(tmp), std::end(tmp)), std::end(tmp));
+
+            for (auto s : tmp) {
+                records_.push_back(new A(s));
+            }
+
+            benchmark::DoNotOptimize(records_.data());
+            benchmark::DoNotOptimize(searches_.data());
         }
-		benchmark::DoNotOptimize(records_.data());
-		benchmark::DoNotOptimize(searches_.data());
-        //		for (auto e : searches_) {
-        //		std::cout << e << std::endl;
-        //}
     }
 
     void TearDown(const ::benchmark::State& state)
     {
-        for (auto item : records_) {
-            delete item;
+        if (state.thread_index == 0) {
+            for (auto item : records_) {
+                delete item;
+            }
+            records_.clear();
+            searches_.clear();
         }
-        records_.clear();
-		searches_.clear();
     }
 
-    //    private:
-    //std::vector<std::vector<A*>, >
     std::vector<A*> records_;
     std::vector<uint32_t> searches_;
 };
-
 
 template <typename RandomIterator, typename Value, typename Comparator, typename Converter>
 RandomIterator HybriddddInterpolationSearch(RandomIterator begin, RandomIterator end, Value key, Comparator comp, Converter lerp)
@@ -404,7 +377,6 @@ RandomIterator FibonacciSearch(RandomIterator begin, RandomIterator end,
     return (begin != end && !(comp(*begin, key)) && !(comp(key, *begin))) ? begin : end;
 }
 
-
 template <class ForwardIt, typename Value, typename Comparator>
 ForwardIt BranchLessBinarySearch(ForwardIt begin, ForwardIt end, const Value& key, Comparator comp)
 {
@@ -419,7 +391,6 @@ ForwardIt BranchLessBinarySearch(ForwardIt begin, ForwardIt end, const Value& ke
     }
     return (begin != end && !comp(*begin, key) && !comp(key, *begin)) ? begin : end;
 }
-
 
 BENCHMARK_DEFINE_F(VectorSearchFixture, HybridInterpolationIt)
 (benchmark::State& state)
@@ -440,8 +411,7 @@ BENCHMARK_DEFINE_F(VectorSearchFixture, HybridInterpolationIt)
         }
     }
 }
-BENCHMARK_REGISTER_F(VectorSearchFixture, HybridInterpolationIt)->RangeMultiplier(0xF + 1)->Range(0xF + 1, 0xFFFFFF + 1)->Complexity();
-
+BENCHMARK_REGISTER_F(VectorSearchFixture, HybridInterpolationIt)->RangeMultiplier(0xF + 1)->Range(0xF + 1, 0xFFFFFF + 1)->Complexity()->Threads(6);
 
 BENCHMARK_DEFINE_F(VectorSearchFixture, InterpolationIt)
 (benchmark::State& state)
@@ -462,8 +432,7 @@ BENCHMARK_DEFINE_F(VectorSearchFixture, InterpolationIt)
         }
     }
 }
-BENCHMARK_REGISTER_F(VectorSearchFixture, InterpolationIt)->RangeMultiplier(0xF + 1)->Range(0xF + 1, 0xFFFFFF + 1)->Complexity();
-
+BENCHMARK_REGISTER_F(VectorSearchFixture, InterpolationIt)->RangeMultiplier(0xF + 1)->Range(0xF + 1, 0xFFFFFF + 1)->Complexity()->Threads(6);
 
 BENCHMARK_DEFINE_F(VectorSearchFixture, FibonacciIt)
 (benchmark::State& state)
@@ -483,9 +452,7 @@ BENCHMARK_DEFINE_F(VectorSearchFixture, FibonacciIt)
         }
     }
 }
-BENCHMARK_REGISTER_F(VectorSearchFixture, FibonacciIt)->RangeMultiplier(0xF + 1)->Range(0xF + 1, 0xFFFFFF + 1)->Complexity();
-
-
+BENCHMARK_REGISTER_F(VectorSearchFixture, FibonacciIt)->RangeMultiplier(0xF + 1)->Range(0xF + 1, 0xFFFFFF + 1)->Complexity()->Threads(6);
 
 BENCHMARK_DEFINE_F(VectorSearchFixture, BranchLessIt)
 (benchmark::State& state)
@@ -493,7 +460,7 @@ BENCHMARK_DEFINE_F(VectorSearchFixture, BranchLessIt)
     uint64_t sum {}, itr {};
     for (auto _ : state) {
         auto rid = searches_[(searches_.size() - ++itr) % searches_.size()];
-        auto low = BranchLessBinarySearch(std::cbegin(records_), std::cend(records_), rid, Comp{});
+        auto low = BranchLessBinarySearch(std::cbegin(records_), std::cend(records_), rid, Comp {});
 
         if (low != std::cend(records_)) {
             if ((*low)->id_ != rid) {
@@ -505,10 +472,7 @@ BENCHMARK_DEFINE_F(VectorSearchFixture, BranchLessIt)
         }
     }
 }
-BENCHMARK_REGISTER_F(VectorSearchFixture, BranchLessIt)->RangeMultiplier(0xF + 1)->Range(0xF + 1, 0xFFFFFF + 1)->Complexity();
-
-
-
+BENCHMARK_REGISTER_F(VectorSearchFixture, BranchLessIt)->RangeMultiplier(0xF + 1)->Range(0xF + 1, 0xFFFFFF + 1)->Complexity()->Threads(6);
 
 enum locate_t { EQUAL,
     LEFT,
@@ -628,9 +592,6 @@ inline ForwardIt branch_less_binary_find_n(ForwardIt first, size_t size, const T
     return first;
 }
 
-
-
-
 template <class ForwardIt, class T>
 inline ForwardIt branch_full_binary_find_n(ForwardIt first, ForwardIt last, size_t size, const T& key)
 {
@@ -670,13 +631,13 @@ inline ForwardIt equal_range(ForwardIt first, ForwardIt last, const T& key)
 
 size_t combine_search(std::vector<A*> const& data, uint32_t const key)
 {
-	auto ind = BranchLessBinarySearch(std::cbegin(data), std::cend(data), key, Comp{});
-	return ind != std::cend(data)? std::distance(std::cbegin(data), ind) : -1;
-		//auto ind = qb::equal_range(std::cbegin(data), std::cend(data), key);
+    auto ind = BranchLessBinarySearch(std::cbegin(data), std::cend(data), key, Comp {});
+    return ind != std::cend(data) ? std::distance(std::cbegin(data), ind) : -1;
+    //auto ind = qb::equal_range(std::cbegin(data), std::cend(data), key);
     //auto ind = std::lower_bound(std::cbegin(data), std::cend(data), key,
     //	[](const auto& lhs, const auto& i) -> bool { return lhs->GetId() < i; });
     //: btsearch(std::cbegin(data), std::cend(data), rid);
-		//return (ind != std::cend(data) && !((*ind)->GetId() < key) && !((*ind)->GetId() > key)) ? std::distance(std::cbegin(data), ind) : -1;
+    //return (ind != std::cend(data) && !((*ind)->GetId() < key) && !((*ind)->GetId() > key)) ? std::distance(std::cbegin(data), ind) : -1;
     //auto ind = std::partition_point(std::cbegin(data), std::cend(data),
     //		[=](const auto& lhs) -> bool { return lhs->GetId() < rid; });
     //return (ind != std::cend(data) && (*ind)->GetId() == rid )? std::distance(std::cbegin(data), ind) : -1;
@@ -1025,82 +986,80 @@ overload_set<F1, F2> overload(F1 f1, F2 f2)
 template <typename RandomIterator, typename Value, typename Comparator, typename Converter>
 RandomIterator FallbackInterpolationSearch(RandomIterator begin, RandomIterator end, Value key, Comparator comp, Converter lerp)
 {
-	using difference_type = std::iterator_traits<RandomIterator>::difference_type;
+    using difference_type = std::iterator_traits<RandomIterator>::difference_type;
 
-	difference_type count = std::distance(begin, end);
+    difference_type count = std::distance(begin, end);
 
 #ifdef NDEBUG
-	RandomIterator last = std::prev(end);
+    RandomIterator last = std::prev(end);
 #else
-	RandomIterator last = count ? std::prev(end) : end;
+    RandomIterator last = count ? std::prev(end) : end;
 #endif
-	int cnt = 6;
-	while (count > 0 && --cnt) {
+    int cnt = 6;
+    while (count > 0 && --cnt) {
 
-		if (!comp(*begin, key)) {
-			end = !comp(key, *begin) ? begin : end;
-			break;
-		}
+        if (!comp(*begin, key)) {
+            end = !comp(key, *begin) ? begin : end;
+            break;
+        }
 
-		if (!comp(key, *last)) {
-			end = !comp(*last, key) ? last : end;
-			break;
-		}
+        if (!comp(key, *last)) {
+            end = !comp(*last, key) ? last : end;
+            break;
+        }
 
-		difference_type probe = static_cast<difference_type>(lerp(*begin, *last, key) * (count - 1));
+        difference_type probe = static_cast<difference_type>(lerp(*begin, *last, key) * (count - 1));
 
-		if (comp(key, begin[probe])) {
-			std::advance(last, probe - count);
-			count = probe;
-		} else if (comp(begin[probe], key)) {
-			std::advance(begin, ++probe);
-			count -= probe;
-		} else {
-			end = std::next(begin, probe);
-			break;
-		}
-	}
-	if (!cnt) {
-		return FibonacciSearch(begin, end, key, std::move(comp));
-	}
-	return end;
-
+        if (comp(key, begin[probe])) {
+            std::advance(last, probe - count);
+            count = probe;
+        } else if (comp(begin[probe], key)) {
+            std::advance(begin, ++probe);
+            count -= probe;
+        } else {
+            end = std::next(begin, probe);
+            break;
+        }
+    }
+    if (!cnt) {
+        return FibonacciSearch(begin, end, key, std::move(comp));
+    }
+    return end;
 }
-
 
 template <typename RandomIterator, typename Value, typename Comparator, typename Converter>
 RandomIterator IInterpolationSearch(RandomIterator begin, RandomIterator end, Value key, Comparator comp, Converter lerp)
 {
-	using difference_type = std::iterator_traits<RandomIterator>::difference_type;
+    using difference_type = std::iterator_traits<RandomIterator>::difference_type;
 
-	difference_type count = std::distance(begin, end);
+    difference_type count = std::distance(begin, end);
 
 #ifdef NDEBUG
-	RandomIterator last = std::prev(end);
+    RandomIterator last = std::prev(end);
 #else
-	RandomIterator last = count ? std::prev(end) : end;
+    RandomIterator last = count ? std::prev(end) : end;
 #endif
-	while (count > 0) {
+    while (count > 0) {
 
-		if (!comp(*begin, key)) {
-			end = !comp(key, *begin) ? begin : end;
-			break;
-		}
+        if (!comp(*begin, key)) {
+            end = !comp(key, *begin) ? begin : end;
+            break;
+        }
 
-		if (!comp(key, *last)) {
-			end = !comp(*last, key) ? last : end;
-			break;
-		}
+        if (!comp(key, *last)) {
+            end = !comp(*last, key) ? last : end;
+            break;
+        }
 
         difference_type probe = static_cast<difference_type>((count - 1) * lerp(*begin, *last, key));
 
-		if (comp(key, begin[probe])) {
+        if (comp(key, begin[probe])) {
 
-			//probe -= count;
-			//std::advance(last, probe - count);
-			//count = probe;
+            //probe -= count;
+            //std::advance(last, probe - count);
+            //count = probe;
 
-			/*/
+            /*/
 			probe = count >> 1;
 			if (!comp(key, begin[probe])) {
 				count -= probe;
@@ -1111,20 +1070,20 @@ RandomIterator IInterpolationSearch(RandomIterator begin, RandomIterator end, Va
 				count += probe;
 			}
 			/*/
-			probe = count >> 1;
-			if (!comp(key, begin[probe])) {
-				std::advance(begin, probe);
-				count -= probe;
-			} else {
-				std::advance(last, probe - count);
-				count = probe;
-			}
-			//*/
-		} else if (comp(begin[probe], key)) {
-			//count -= ++probe;
-			//std::advance(begin, probe);
+            probe = count >> 1;
+            if (!comp(key, begin[probe])) {
+                std::advance(begin, probe);
+                count -= probe;
+            } else {
+                std::advance(last, probe - count);
+                count = probe;
+            }
+            //*/
+        } else if (comp(begin[probe], key)) {
+            //count -= ++probe;
+            //std::advance(begin, probe);
 
-			/*/
+            /*/
 			probe = count >> 1;
 			if (!comp(key, begin[probe])) {
 			count -= probe;
@@ -1135,104 +1094,101 @@ RandomIterator IInterpolationSearch(RandomIterator begin, RandomIterator end, Va
 			count += probe;
 			}
 			/*/
-			probe = count >> 1;
-			if (!comp(key, begin[probe])) {
-				std::advance(begin, probe);
-				count -= probe;
-			} else {
-				std::advance(last, probe - count);
-				count = probe;
-			}
-			//*/
-		} else {
-			end = begin;
-			std::advance(end, probe);
-			break;
-		}
-
-	}
-	return end;
+            probe = count >> 1;
+            if (!comp(key, begin[probe])) {
+                std::advance(begin, probe);
+                count -= probe;
+            } else {
+                std::advance(last, probe - count);
+                count = probe;
+            }
+            //*/
+        } else {
+            end = begin;
+            std::advance(end, probe);
+            break;
+        }
+    }
+    return end;
 }
 
 template <typename RandomIterator, typename Value, typename Comparator, typename Converter>
 RandomIterator InterpolationSearchB(RandomIterator begin, RandomIterator end, Value key, Comparator comp, Converter lerp)
 {
-	using difference_type = std::iterator_traits<RandomIterator>::difference_type;
+    using difference_type = std::iterator_traits<RandomIterator>::difference_type;
 
-	difference_type count = std::distance(begin, end);
+    difference_type count = std::distance(begin, end);
 
 #ifdef NDEBUG
-	RandomIterator last = std::prev(end);
+    RandomIterator last = std::prev(end);
 #else
-	RandomIterator last = count ? std::prev(end) : end;
+    RandomIterator last = count ? std::prev(end) : end;
 #endif
-	while (count > 0) {
+    while (count > 0) {
 
-		if (!comp(*begin, key)) {
-			end = !comp(key, *begin) ? begin : end;
-			break;
-		}
+        if (!comp(*begin, key)) {
+            end = !comp(key, *begin) ? begin : end;
+            break;
+        }
 
-		if (!comp(key, *last)) {
-			end = !comp(*last, key) ? last : end;
-			break;
-		}
+        if (!comp(key, *last)) {
+            end = !comp(*last, key) ? last : end;
+            break;
+        }
 
-		difference_type probe = static_cast<difference_type>(double(lerp(*begin, *last, key)) * double(count - 1));
+        difference_type probe = static_cast<difference_type>(double(lerp(*begin, *last, key)) * double(count - 1));
 
-		if (comp(key, begin[probe])) {
+        if (comp(key, begin[probe])) {
 
-			probe -= count;
-			std::advance(last, probe);
-			count += probe;
+            probe -= count;
+            std::advance(last, probe);
+            count += probe;
 
-			probe = count >> 1;
-			if (!comp(key, begin[probe])) {
-				std::advance(begin, probe);
-				count -= probe;
-			} else {
-				std::advance(last, probe - count);
-				count = probe;
-			}
-		} else if (comp(begin[probe], key)) {
-			count -= ++probe;
-			std::advance(begin, probe);
+            probe = count >> 1;
+            if (!comp(key, begin[probe])) {
+                std::advance(begin, probe);
+                count -= probe;
+            } else {
+                std::advance(last, probe - count);
+                count = probe;
+            }
+        } else if (comp(begin[probe], key)) {
+            count -= ++probe;
+            std::advance(begin, probe);
 
-			probe = count >> 1;
-			if (!comp(key, begin[probe])) {
-				std::advance(begin, probe);
-				count -= probe;
-			} else {
-				std::advance(last, probe - count);
-				count = probe;
-			}
-		} else {
-			end = begin;
-			std::advance(end, probe);
-			break;
-		}
-
-	}
-	return end;
+            probe = count >> 1;
+            if (!comp(key, begin[probe])) {
+                std::advance(begin, probe);
+                count -= probe;
+            } else {
+                std::advance(last, probe - count);
+                count = probe;
+            }
+        } else {
+            end = begin;
+            std::advance(end, probe);
+            break;
+        }
+    }
+    return end;
 }
-
 
 template <typename RandomIterator, typename Value, typename Comparator, typename Converter>
 RandomIterator InterpolationSearch2(RandomIterator begin, RandomIterator end, Value key, Comparator comp, Converter conv)
 {
     using difference_type = std::iterator_traits<RandomIterator>::difference_type;
 
-	difference_type count = std::distance(begin, end);
+    difference_type count = std::distance(begin, end);
 
-	//RandomIterator last = std::prev(end);
+    //RandomIterator last = std::prev(end);
 
     while (count > 0) {
-		
+
         if (!comp(*begin, key)) {
             begin = !comp(key, *begin) ? begin : end;
-			break;
+            break;
         }
-		/*
+        /*
         if (!comp(key, *(end - 1))) {
             begin = !comp(*(end - 1), key) ? (end -1) : end;
 			break;
@@ -1253,8 +1209,8 @@ RandomIterator InterpolationSearch2(RandomIterator begin, RandomIterator end, Va
             return begin;
         }
 		*/
-		difference_type probe = conv(*begin, *(end -1), key) * (count - 1);
-		/*
+        difference_type probe = conv(*begin, *(end - 1), key) * (count - 1);
+        /*
 		if (comp(key, begin[probe])) {
 			std::advance(last, probe - count);
 			count = probe;
@@ -1266,7 +1222,7 @@ RandomIterator InterpolationSearch2(RandomIterator begin, RandomIterator end, Va
 			break;
 		}
 		*/
-		/*
+        /*
 		if (comp(key, begin[probe])) {
 			probe = count >> 1;
 			if (!comp(key, begin[probe])) {
@@ -1288,7 +1244,7 @@ RandomIterator InterpolationSearch2(RandomIterator begin, RandomIterator end, Va
 				count -= probe;
 			}
 			*/
-		/*
+        /*
 		if (comp(key, begin[probe])) {
 			probe = count >> 1;
 			if (!comp(key, begin[probe])) {
@@ -1311,31 +1267,31 @@ RandomIterator InterpolationSearch2(RandomIterator begin, RandomIterator end, Va
 			end = std::next(begin, probe);
 			break;
 		}*/
-		if (comp(key, begin[probe])) {
-			probe = count >> 1;
-			if (!comp(key, begin[probe])) {
-				std::advance(begin, probe);
-				count -= probe;
-			} else {
-				std::advance(end, probe - count);
-				count = probe;
-			}
-		} else if (comp(begin[probe], key)) {
-			probe = count >> 1;
-			if (!comp(begin[probe], key)) {
-//				end = begin + probe;
-//				count = std::distance(begin, end);;
+        if (comp(key, begin[probe])) {
+            probe = count >> 1;
+            if (!comp(key, begin[probe])) {
+                std::advance(begin, probe);
+                count -= probe;
+            } else {
+                std::advance(end, probe - count);
+                count = probe;
+            }
+        } else if (comp(begin[probe], key)) {
+            probe = count >> 1;
+            if (!comp(begin[probe], key)) {
+                //				end = begin + probe;
+                //				count = std::distance(begin, end);;
 
-				std::advance(end, probe - count);
-				count = probe;
-			} else {
-				std::advance(begin, ++probe);
-				count -= probe;
-			}
-		} else {
-			std::advance(begin, probe);
-			break;
-		}
+                std::advance(end, probe - count);
+                count = probe;
+            } else {
+                std::advance(begin, ++probe);
+                count -= probe;
+            }
+        } else {
+            std::advance(begin, probe);
+            break;
+        }
     }
     return begin;
 }
@@ -1343,59 +1299,58 @@ RandomIterator InterpolationSearch2(RandomIterator begin, RandomIterator end, Va
 template <typename RandomIterator, typename Value, typename Comparator, typename Converter>
 RandomIterator HHHybridInterpolationSearch(RandomIterator begin, RandomIterator end, Value key, Comparator comp, Converter lerp)
 {
-	using difference_type = std::iterator_traits<RandomIterator>::difference_type;
+    using difference_type = std::iterator_traits<RandomIterator>::difference_type;
 
-	difference_type count = std::distance(begin, end), mid;
+    difference_type count = std::distance(begin, end), mid;
 
 #ifdef NDEBUG
-	RandomIterator last = std::prev(end);
+    RandomIterator last = std::prev(end);
 #else
-	RandomIterator last = count ? std::prev(end) : end;
+    RandomIterator last = count ? std::prev(end) : end;
 #endif
-	while (count > 0) {
+    while (count > 0) {
 
-		if (!comp(*begin, key)) {
-			end = !comp(key, *begin) ? begin : end;
-			break;
-		}
+        if (!comp(*begin, key)) {
+            end = !comp(key, *begin) ? begin : end;
+            break;
+        }
 
-		if (!comp(key, *last)) {
-			end = !comp(*last, key) ? last : end;
-			break;
-		}
+        if (!comp(key, *last)) {
+            end = !comp(*last, key) ? last : end;
+            break;
+        }
 
-		difference_type probe = static_cast<difference_type>(lerp(*begin, *last, key) * (count - 1));
+        difference_type probe = static_cast<difference_type>(lerp(*begin, *last, key) * (count - 1));
 
-		if (comp(key, begin[probe])) {
-			probe -= count;
-			mid = count >> 1;
-			count += probe;
-			if (!comp(key, begin[mid])) {
-				std::advance(begin, mid);
-				std::advance(last, probe);
-				count -= mid;
-			} else {
-				mid -= count;
-				std::advance(last, probe + mid);
-				count += mid;
-			}
-		} else if (comp(begin[probe], key)) {
-			mid = (probe + count) >> 1;
-			if (!comp(key, begin[mid])) {
-				std::advance(begin, mid);
-				count -= mid;
-			} else {
-				std::advance(begin, probe);
-				std::advance(last, mid - count);
-				count = mid - probe;
-			}
-		} else {
-			end = std::next(begin, probe);
-			break;
-		}
-
-	}
-	return end;
+        if (comp(key, begin[probe])) {
+            probe -= count;
+            mid = count >> 1;
+            count += probe;
+            if (!comp(key, begin[mid])) {
+                std::advance(begin, mid);
+                std::advance(last, probe);
+                count -= mid;
+            } else {
+                mid -= count;
+                std::advance(last, probe + mid);
+                count += mid;
+            }
+        } else if (comp(begin[probe], key)) {
+            mid = (probe + count) >> 1;
+            if (!comp(key, begin[mid])) {
+                std::advance(begin, mid);
+                count -= mid;
+            } else {
+                std::advance(begin, probe);
+                std::advance(last, mid - count);
+                count = mid - probe;
+            }
+        } else {
+            end = std::next(begin, probe);
+            break;
+        }
+    }
+    return end;
 }
 
 int HybridSearch(const std::vector<A*>& a, uint32_t x)
@@ -1431,21 +1386,19 @@ int HybridSearch(const std::vector<A*>& a, uint32_t x)
     return -1;
 }
 
-
 BENCHMARK_DEFINE_F(VectorSearchFixture, combine_search)
 (benchmark::State& state)
 {
-	uint64_t sum {}, itr {};
-	for (auto _ : state) {
-		auto rid = searches_[(searches_.size() - ++itr) % searches_.size()];
-		auto low = combine_search(records_, rid);
-		if (low < records_.size()) {
-			benchmark::DoNotOptimize(sum += records_[low]->id_);
-		}
-	}
+    uint64_t sum {}, itr {};
+    for (auto _ : state) {
+        auto rid = searches_[(searches_.size() - ++itr) % searches_.size()];
+        auto low = combine_search(records_, rid);
+        if (low < records_.size()) {
+            benchmark::DoNotOptimize(sum += records_[low]->id_);
+        }
+    }
 }
 BENCHMARK_REGISTER_F(VectorSearchFixture, combine_search)->RangeMultiplier(0xF + 1)->Range(0xF + 1, 0xFFFFFF + 1)->Complexity();
-
 
 BENCHMARK_DEFINE_F(VectorSearchFixture, hib_search)
 (benchmark::State& state)
@@ -1460,7 +1413,6 @@ BENCHMARK_DEFINE_F(VectorSearchFixture, hib_search)
     }
 }
 //BENCHMARK_REGISTER_F(VectorSearchFixture, hib_search)->RangeMultiplier(0xF + 1)->Range(0xF + 1, 0xFFFFFF + 1)->Complexity();
-
 
 size_t interpolationSearch(const std::vector<A*>& arr, int x)
 {
@@ -1498,99 +1450,95 @@ size_t interpolationSearch(const std::vector<A*>& arr, int x)
 BENCHMARK_DEFINE_F(VectorSearchFixture, fint_search)
 (benchmark::State& state)
 {
-	uint64_t sum {}, itr {};
-	//records_ // (double(key) - conv(*begin)) * (count - 1) / (conv(*last) - conv(*begin));
-	for (auto _ : state) {
-		auto rid = searches_[(searches_.size() - ++itr) % searches_.size()];
-		auto low = FallbackInterpolationSearch(std::cbegin(records_), std::cend(records_), rid,
-			Comp{},
-			[](const A* first, const A* last, uint32_t key) -> double { return (double(key) - first->GetId()) / (last->GetId() - first->GetId()); });
-		//[](const A* e) { return e->GetId(); });
+    uint64_t sum {}, itr {};
+    //records_ // (double(key) - conv(*begin)) * (count - 1) / (conv(*last) - conv(*begin));
+    for (auto _ : state) {
+        auto rid = searches_[(searches_.size() - ++itr) % searches_.size()];
+        auto low = FallbackInterpolationSearch(std::cbegin(records_), std::cend(records_), rid,
+            Comp {},
+            [](const A* first, const A* last, uint32_t key) -> double { return (double(key) - first->GetId()) / (last->GetId() - first->GetId()); });
+        //[](const A* e) { return e->GetId(); });
 
-		if (low != std::cend(records_)) {
-			if ((*low)->id_ != rid) {
-				std::cout << "error" << std::endl;
-			}
-			benchmark::DoNotOptimize(sum += (*low)->id_);
-		} else {
-			std::cout << "not found error" << std::endl;
-		}
-	}
+        if (low != std::cend(records_)) {
+            if ((*low)->id_ != rid) {
+                std::cout << "error" << std::endl;
+            }
+            benchmark::DoNotOptimize(sum += (*low)->id_);
+        } else {
+            std::cout << "not found error" << std::endl;
+        }
+    }
 }
 //BENCHMARK_REGISTER_F(VectorSearchFixture, fint_search)->RangeMultiplier(0xF + 1)->Range(0xF + 1, 0xFFFFFF + 1)->Complexity();
 
 BENCHMARK_DEFINE_F(VectorSearchFixture, intb_search)
 (benchmark::State& state)
 {
-	uint64_t sum {}, itr {};
-	//records_ // (double(key) - conv(*begin)) * (count - 1) / (conv(*last) - conv(*begin));
-	for (auto _ : state) {
-		auto rid = searches_[(searches_.size() - ++itr) % searches_.size()];
-		auto low = InterpolationSearch(std::cbegin(records_), std::cend(records_), rid,
-			Comp{},
-			[](const A* first, const A* last, uint32_t key) -> double { return (double(key) - first->GetId()) / (last->GetId() - first->GetId()); });
-		//[](const A* e) { return e->GetId(); });
+    uint64_t sum {}, itr {};
+    //records_ // (double(key) - conv(*begin)) * (count - 1) / (conv(*last) - conv(*begin));
+    for (auto _ : state) {
+        auto rid = searches_[(searches_.size() - ++itr) % searches_.size()];
+        auto low = InterpolationSearch(std::cbegin(records_), std::cend(records_), rid,
+            Comp {},
+            [](const A* first, const A* last, uint32_t key) -> double { return (double(key) - first->GetId()) / (last->GetId() - first->GetId()); });
+        //[](const A* e) { return e->GetId(); });
 
-		if (low != std::cend(records_)) {
-			if ((*low)->id_ != rid) {
-				std::cout << "error" << std::endl;
-			}
-			benchmark::DoNotOptimize(sum += (*low)->id_);
-		} else {
-			std::cout << "not found error" << std::endl;
-		}
-	}
+        if (low != std::cend(records_)) {
+            if ((*low)->id_ != rid) {
+                std::cout << "error" << std::endl;
+            }
+            benchmark::DoNotOptimize(sum += (*low)->id_);
+        } else {
+            std::cout << "not found error" << std::endl;
+        }
+    }
 }
 BENCHMARK_REGISTER_F(VectorSearchFixture, intb_search)->RangeMultiplier(0xF + 1)->Range(0xF + 1, 0xFFFFFF + 1)->Complexity();
-
-
 
 BENCHMARK_DEFINE_F(VectorSearchFixture, int_search)
 (benchmark::State& state)
 {
-	uint64_t sum {}, itr {};
-	//records_ // (double(key) - conv(*begin)) * (count - 1) / (conv(*last) - conv(*begin));
-	for (auto _ : state) {
-		auto rid = searches_[(searches_.size() - ++itr) % searches_.size()];
-		auto low = InterpolationSearch(std::cbegin(records_), std::cend(records_), rid,
-			Comp{},
-			[](const A* first, const A* last, uint32_t key) -> double { return (double(key) - first->GetId()) / (last->GetId() - first->GetId()); });
-		//[](const A* e) { return e->GetId(); });
+    uint64_t sum {}, itr {};
+    //records_ // (double(key) - conv(*begin)) * (count - 1) / (conv(*last) - conv(*begin));
+    for (auto _ : state) {
+        auto rid = searches_[(searches_.size() - ++itr) % searches_.size()];
+        auto low = InterpolationSearch(std::cbegin(records_), std::cend(records_), rid,
+            Comp {},
+            [](const A* first, const A* last, uint32_t key) -> double { return (double(key) - first->GetId()) / (last->GetId() - first->GetId()); });
+        //[](const A* e) { return e->GetId(); });
 
-		if (low != std::cend(records_)) {
-			if ((*low)->id_ != rid) {
-				std::cout << "error" << std::endl;
-			}
-			benchmark::DoNotOptimize(sum += (*low)->id_);
-		} else {
-			std::cout << "not found error" << std::endl;
-		}
-	}
+        if (low != std::cend(records_)) {
+            if ((*low)->id_ != rid) {
+                std::cout << "error" << std::endl;
+            }
+            benchmark::DoNotOptimize(sum += (*low)->id_);
+        } else {
+            std::cout << "not found error" << std::endl;
+        }
+    }
 }
 BENCHMARK_REGISTER_F(VectorSearchFixture, int_search)->RangeMultiplier(0xF + 1)->Range(0xF + 1, 0xFFFFFF + 1)->Complexity();
-
 
 BENCHMARK_DEFINE_F(VectorSearchFixture, hint_search)
 (benchmark::State& state)
 {
     uint64_t sum {}, itr {};
-	//records_ // (double(key) - conv(*begin)) * (count - 1) / (conv(*last) - conv(*begin));
+    //records_ // (double(key) - conv(*begin)) * (count - 1) / (conv(*last) - conv(*begin));
     for (auto _ : state) {
         auto rid = searches_[(searches_.size() - ++itr) % searches_.size()];
-		auto low = HybridInterpolationSearch(std::cbegin(records_), std::cend(records_), rid,
-			Comp{},
-			[](const A* first, const A* last, uint32_t key) -> double { return (double(key) - first->GetId()) / (last->GetId() - first->GetId()); });
-			//[](const A* e) { return e->GetId(); });
+        auto low = HybridInterpolationSearch(std::cbegin(records_), std::cend(records_), rid,
+            Comp {},
+            [](const A* first, const A* last, uint32_t key) -> double { return (double(key) - first->GetId()) / (last->GetId() - first->GetId()); });
+        //[](const A* e) { return e->GetId(); });
 
         if (low != std::cend(records_)) {
-			if ((*low)->id_ != rid) {
-				std::cout << "error" << std::endl;
-			}
+            if ((*low)->id_ != rid) {
+                std::cout << "error" << std::endl;
+            }
             benchmark::DoNotOptimize(sum += (*low)->id_);
         } else {
-			std::cout << "not found error" << std::endl;
-		}
-
+            std::cout << "not found error" << std::endl;
+        }
     }
 }
 BENCHMARK_REGISTER_F(VectorSearchFixture, hint_search)->RangeMultiplier(0xF + 1)->Range(0xF + 1, 0xFFFFFF + 1)->Complexity();
@@ -1618,7 +1566,6 @@ BENCHMARK_DEFINE_F(VectorSearchFixture, fib3_search)
     }
 }
 BENCHMARK_REGISTER_F(VectorSearchFixture, fib3_search)->RangeMultiplier(0xF + 1)->Range(0xF + 1, 0xFFFFFF + 1)->Complexity();
-
 
 BENCHMARK_DEFINE_F(VectorSearchFixture, int2_search)
 (benchmark::State& state)
