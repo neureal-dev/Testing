@@ -1,18 +1,20 @@
 ﻿// Test.cpp : Defines the entry point for the application.
 //
 
-#include "LUTBenchmark.h"
 #include <algorithm>
-#include <array>
+//#include <array>
 #include <benchmark/benchmark.h>
-#include <chrono>
-#include <mutex>
+//#include <chrono>
+//#include <mutex>
 #include <random>
-#include <shared_mutex>
-#include <thread>
-#include <unordered_map>
+//#include <shared_mutex>
+//#include <thread>
+//#include <unordered_map>
 #include <utility>
+#include <variant>
 #include <vector>
+
+#include "LUTBenchmark.h"
 
 struct A {
 
@@ -31,7 +33,7 @@ struct A {
     uint32_t id_;
     int64_t id1_;
     int64_t id2_;
-    std::array<int64_t, 32> id4_;
+    //std::array<int64_t, 32> id4_;
 };
 
 struct Comp {
@@ -43,19 +45,33 @@ struct VectorSearchFixture : benchmark::Fixture {
 
     void SetUp(const ::benchmark::State& state)
     {
-        if (state.thread_index == 0 && searches_.size() < state.range_x()) {
-            searches_.resize(state.range_x(), 0);
+        if (state.thread_index == 0) {
 
+            searches_.resize(state.range_x(), 0);
+            records_.reserve(state.range_x());
+
+            benchmark::DoNotOptimize(records_.data());
+
+            benchmark::DoNotOptimize(searches_.data());
             std::mt19937 rng;
 
             rng.seed(std::random_device()());
 
-            std::uniform_real_distribution<double> distribution(0.0, 10.0);
-            //std::normal_distribution<double> distribution(5.0, 3.0);
-            //std::exponential_distribution<double> distribution(3.5);
+            std::variant<std::uniform_real_distribution<double>,
+                std::normal_distribution<double>,
+                std::exponential_distribution<double>>
+                distribution;
+
+            if (state.range_y() == 0) {
+                distribution = std::uniform_real_distribution<double>(0.0, 10.0);
+            } else if (state.range_y() == 1) {
+                distribution = std::normal_distribution<double>(5.0, 3.0);
+            } else {
+                distribution = std::exponential_distribution<double>(3.5);
+            }
 
             for (size_t i = 0; i < state.range_x(); ++i) {
-                double number = distribution(rng);
+                double number = std::visit([&](auto& dist) -> double { return dist(rng); }, distribution);
                 if (number > 0.0 && number < 10.0) {
                     searches_[i] = static_cast<uint64_t>((number / 10.0) * state.range_x());
                 }
@@ -71,8 +87,7 @@ struct VectorSearchFixture : benchmark::Fixture {
                 records_.push_back(new A(s));
             }
 
-            benchmark::DoNotOptimize(records_.data());
-            benchmark::DoNotOptimize(searches_.data());
+            benchmark::ClobberMemory();
         }
     }
 
@@ -411,7 +426,7 @@ BENCHMARK_DEFINE_F(VectorSearchFixture, HybridInterpolationIt)
         }
     }
 }
-BENCHMARK_REGISTER_F(VectorSearchFixture, HybridInterpolationIt)->RangeMultiplier(0xF + 1)->Range(0xF + 1, 0xFFFFFF + 1)->Complexity()->Threads(6);
+BENCHMARK_REGISTER_F(VectorSearchFixture, HybridInterpolationIt)->RangeMultiplier(0xF + 1)->Ranges({ { 0xF + 1, 0xFFFFFF + 1 }, { 0, 2 } })->Complexity()->Threads(6);
 
 BENCHMARK_DEFINE_F(VectorSearchFixture, InterpolationIt)
 (benchmark::State& state)
@@ -432,7 +447,7 @@ BENCHMARK_DEFINE_F(VectorSearchFixture, InterpolationIt)
         }
     }
 }
-BENCHMARK_REGISTER_F(VectorSearchFixture, InterpolationIt)->RangeMultiplier(0xF + 1)->Range(0xF + 1, 0xFFFFFF + 1)->Complexity()->Threads(6);
+BENCHMARK_REGISTER_F(VectorSearchFixture, InterpolationIt)->RangeMultiplier(0xF + 1)->Ranges({{0xF + 1, 0xFFFFFF + 1}, {0, 2}})->Complexity()->Threads(6);
 
 BENCHMARK_DEFINE_F(VectorSearchFixture, FibonacciIt)
 (benchmark::State& state)
@@ -452,7 +467,7 @@ BENCHMARK_DEFINE_F(VectorSearchFixture, FibonacciIt)
         }
     }
 }
-BENCHMARK_REGISTER_F(VectorSearchFixture, FibonacciIt)->RangeMultiplier(0xF + 1)->Range(0xF + 1, 0xFFFFFF + 1)->Complexity()->Threads(6);
+BENCHMARK_REGISTER_F(VectorSearchFixture, FibonacciIt)->RangeMultiplier(0xF + 1)->Ranges({ { 0xF + 1, 0xFFFFFF + 1 }, { 0, 2 } })->Complexity()->Threads(6);
 
 BENCHMARK_DEFINE_F(VectorSearchFixture, BranchLessIt)
 (benchmark::State& state)
@@ -472,7 +487,10 @@ BENCHMARK_DEFINE_F(VectorSearchFixture, BranchLessIt)
         }
     }
 }
-BENCHMARK_REGISTER_F(VectorSearchFixture, BranchLessIt)->RangeMultiplier(0xF + 1)->Range(0xF + 1, 0xFFFFFF + 1)->Complexity()->Threads(6);
+BENCHMARK_REGISTER_F(VectorSearchFixture, BranchLessIt)->RangeMultiplier(0xF + 1)->Ranges({ { 0xF + 1, 0xFFFFFF + 1 }, { 0, 2 } })->Complexity()->Threads(6);
+
+
+
 
 enum locate_t { EQUAL,
     LEFT,
