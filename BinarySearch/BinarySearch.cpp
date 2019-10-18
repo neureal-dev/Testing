@@ -85,7 +85,7 @@ bool operator!=(const FibonacciIterator<Integer>& lhs, const FibonacciIterator<I
 template <class ForwardIt, class Value, typename Comparator>
 ForwardIt Search(ForwardIt begin, ForwardIt end, const Value& key, Comparator comp)
 {
-	using difference_type = std::iterator_traits<ForwardIt>::difference_type;
+	using difference_type = typename std::iterator_traits<ForwardIt>::difference_type;
 
 	difference_type count = std::distance(begin, end);
 

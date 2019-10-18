@@ -14,6 +14,13 @@ find_package(benchmark CONFIG REQUIRED)
 # Add source to this project's executable.
 add_executable (LUTBenchmark "LUTBenchmark.cpp" "LUTBenchmark.h")
 
+if(MSVC)
+  target_compile_options(LUTBenchmark PRIVATE /W4 /WX)
+else()
+  target_compile_options(LUTBenchmark PRIVATE -Wall -Wextra -pedantic -Werror)
+endif()
+
+
 target_link_libraries(LUTBenchmark PRIVATE benchmark::benchmark benchmark::benchmark_main)
 
 # TODO: Add tests and install targets if needed.
