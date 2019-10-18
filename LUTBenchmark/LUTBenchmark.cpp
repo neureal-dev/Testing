@@ -30,7 +30,7 @@ public:
     uint64_t id1_;
     uint64_t id2_;
     //uint64_t id3_;
-    //std::array<uint64_t, 32> id4_;
+    std::array<uint64_t, 32> id4_;
 };
 
 struct Comp {
@@ -60,9 +60,9 @@ public:
             rng.seed(std::random_device()());
             
 			//*/
-			//std::uniform_real_distribution<double> distribution(0.0, 10.0);
+			std::uniform_real_distribution<double> distribution(0.0, 10.0);
 			//std::normal_distribution<double> distribution(5.0, 3.0);
-            std::exponential_distribution<double> distribution(3.5);
+            //std::exponential_distribution<double> distribution(3.5);
 
             for (int i = 0; i < state.range_x(); ++i) {
                 double number = distribution(rng);
@@ -409,15 +409,39 @@ template <class ForwardIt, typename Value, typename Comparator>
 ForwardIt BranchLessBinarySearch(ForwardIt begin, ForwardIt end, const Value& key, Comparator comp)
 {
     using difference_type = std::iterator_traits<ForwardIt>::difference_type;
-    difference_type size = std::distance(begin, end);
 
-    while (difference_type half = size >> 1) {
+    difference_type count = std::distance(begin, end);
+
+    while (difference_type half = count >> 1) {
         if (!comp(key, begin[half])) {
             std::advance(begin, half);
         }
-        size = size - half;
+        count -= half;
     }
     return (begin != end && !comp(*begin, key) && !comp(key, *begin)) ? begin : end;
+}
+
+
+template <class ForwardIt, class Value, typename Comparator>
+ForwardIt BranchFullBinarySearch(ForwardIt begin, ForwardIt end, const Value& key, Comparator comp)
+{
+	using difference_type = std::iterator_traits<ForwardIt>::difference_type;
+
+	difference_type count = std::distance(begin, end);
+
+	while (difference_type half = count >> 1) {
+
+		if (comp(begin[half], key)) {
+			std::advance(begin, ++half);
+		} else {
+			if (!comp(key, begin[half])) {
+				std::advance(begin, half);
+				break;
+			}
+		}
+		count -= half;
+	}
+	return (begin != end && !comp(*begin, key) && !comp(key, *begin)) ? begin : end;
 }
 
 
@@ -486,7 +510,6 @@ BENCHMARK_DEFINE_F(VectorSearchFixture, FibonacciIt)
 BENCHMARK_REGISTER_F(VectorSearchFixture, FibonacciIt)->RangeMultiplier(0xF + 1)->Range(0xF + 1, 0xFFFFFF + 1)->Complexity();
 
 
-
 BENCHMARK_DEFINE_F(VectorSearchFixture, BranchLessIt)
 (benchmark::State& state)
 {
@@ -507,6 +530,26 @@ BENCHMARK_DEFINE_F(VectorSearchFixture, BranchLessIt)
 }
 BENCHMARK_REGISTER_F(VectorSearchFixture, BranchLessIt)->RangeMultiplier(0xF + 1)->Range(0xF + 1, 0xFFFFFF + 1)->Complexity();
 
+
+BENCHMARK_DEFINE_F(VectorSearchFixture, BranchFullIt)
+(benchmark::State& state)
+{
+	uint64_t sum {}, itr {};
+	for (auto _ : state) {
+		auto rid = searches_[(searches_.size() - ++itr) % searches_.size()];
+		auto low = BranchFullBinarySearch(std::cbegin(records_), std::cend(records_), rid, Comp{});
+
+		if (low != std::cend(records_)) {
+			if ((*low)->id_ != rid) {
+				std::cout << "error search" << std::endl;
+			}
+			benchmark::DoNotOptimize(sum += (*low)->id_);
+		} else {
+			std::cout << "not found error" << std::endl;
+		}
+	}
+}
+BENCHMARK_REGISTER_F(VectorSearchFixture, BranchFullIt)->RangeMultiplier(0xF + 1)->Range(0xF + 1, 0xFFFFFF + 1)->Complexity();
 
 
 
