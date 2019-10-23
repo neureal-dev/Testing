@@ -34,7 +34,8 @@ struct Comp {
     inline bool operator()(uint32_t i, const A& s) const noexcept { return i < s.GetId(); }
 };
 
-template <class T> constexpr void ignore(const T&) {}
+template <class T>
+constexpr void ignore(const T&) {}
 
 } // namespace
 
@@ -296,7 +297,8 @@ RandomIterator InterpolationSearch(RandomIterator begin, RandomIterator end, Val
     return end;
 }
 
-template <typename Integer> class FibonacciIterator {
+template <typename Integer>
+class FibonacciIterator {
 public:
     using iterator_category = std::bidirectional_iterator_tag;
     using value_type = Integer;
