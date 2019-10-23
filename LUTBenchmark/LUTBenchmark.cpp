@@ -11,32 +11,35 @@
 #include <benchmark/benchmark.h>
 
 struct A {
-    A(uint32_t id)
-            : id_(id)
-            , id1_{}
-            , id2_{}
-            , id4_{}
-    {
-    }
+    A(uint32_t id) : id_(id), id1_{}, id2_{}, id4_{} {}
 
     uint32_t GetId() const { return id_; }
 
     uint32_t id_;
     uint64_t id1_;
     uint64_t id2_;
-    std::array<uint64_t, 3> id4_;
+    std::array<uint64_t, 32> id4_;
 };
 
+namespace {
+
 struct Comp {
+
     inline bool operator()(const A* s, uint32_t i) const noexcept { return s->GetId() < i; }
+
     inline bool operator()(uint32_t i, const A* s) const noexcept { return i < s->GetId(); }
+
     inline bool operator()(const A& s, uint32_t i) const noexcept { return s.GetId() < i; }
+
     inline bool operator()(uint32_t i, const A& s) const noexcept { return i < s.GetId(); }
 };
 
-template <class T> void ignore(const T&) {}
+template <class T> constexpr void ignore(const T&) {}
+
+} // namespace
 
 struct VectorSearchFixture : benchmark::Fixture {
+
     void SetUp(const ::benchmark::State& state)
     {
         if (state.thread_index == 0) {
@@ -301,15 +304,9 @@ public:
     using pointer = Integer*;
     using reference = Integer&;
 
-    explicit FibonacciIterator()
-            : curr(0)
-            , next(1)
-    {
-    }
+    explicit FibonacciIterator() : curr(0), next(1) {}
 
-    explicit FibonacciIterator(Integer target)
-            : curr(0)
-            , next(1)
+    explicit FibonacciIterator(Integer target) : curr(0), next(1)
     {
         while (next <= target) {
             next = curr + next;
