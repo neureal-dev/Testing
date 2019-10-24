@@ -11,6 +11,7 @@
 #include <benchmark/benchmark.h>
 
 struct A {
+
     A(uint32_t id) : id_(id), id1_{}, id2_{}, id4_{} {}
 
     uint32_t GetId() const { return id_; }
