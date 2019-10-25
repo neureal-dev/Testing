@@ -19,14 +19,13 @@ size_t X(int a)
 }
 
 
-static void BM_SomeFunction(benchmark::State& state)
-{
-    std::vector<std::future<size_t>> v(100);
-    for (auto&& f : v) {
-        f = std::move(std::async(X, 43ul));
-    }
-    
-}
+//static void BM_SomeFunction(benchmark::State& state)
+//{
+//    std::vector<std::future<size_t>> v(100);
+//    for (auto&& f : v) {
+//        f = std::async(X, 43ul);
+//    }
+//}
 /*
 BENCHMARK(BM_SomeFunction)->Threads(1);
 
@@ -38,7 +37,7 @@ int main()
     size_t result = 0;
     std::vector<std::future<size_t>> v(100);
     for (auto&& f : v) {
-        f = std::move(std::async(std::launch::async, X, result++));
+        f = std::async(std::launch::async, X, result++);
     }
     result = result * (result - 1) / 2;
     std::cout << result << std::endl;
@@ -47,5 +46,5 @@ int main()
         std::cout << result << std::endl;
     }
     std::cout << result << std::endl;
-    return result;
+    return static_cast<int>(result);
 }

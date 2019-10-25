@@ -11,7 +11,6 @@
 #include <benchmark/benchmark.h>
 
 struct A {
-
     A(uint32_t id) : id_(id), id1_{}, id2_{}, id4_{} {}
 
     uint32_t GetId() const { return id_; }
@@ -23,7 +22,6 @@ struct A {
 };
 
 namespace {
-
 struct Comp {
 
     inline bool operator()(const A* s, uint32_t i) const noexcept { return s->GetId() < i; }
@@ -41,7 +39,6 @@ constexpr void ignore(const T&) {}
 } // namespace
 
 struct VectorSearchFixture : benchmark::Fixture {
-
     void SetUp(const ::benchmark::State& state)
     {
         if (state.thread_index == 0) {
