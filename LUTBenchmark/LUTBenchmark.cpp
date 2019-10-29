@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <array>
 #include <iterator>
+#include <omp.h>
 #include <random>
 #include <utility>
 #include <variant>
@@ -13,7 +14,7 @@
 struct A {
     A(uint32_t id) : id_(id), id1_{}, id2_{}, id4_{} {}
 
-    uint32_t GetId() const { return id_; }
+    [[nodiscard]] uint32_t GetId() const { return id_; }
 
     uint32_t id_;
     uint64_t id1_;
@@ -31,6 +32,10 @@ struct Comp {
     inline bool operator()(const A& s, uint32_t i) const noexcept { return s.GetId() < i; }
 
     inline bool operator()(uint32_t i, const A& s) const noexcept { return i < s.GetId(); }
+
+    inline bool operator()(const std::unique_ptr<A>& s, uint32_t i) const noexcept { return s->GetId() < i; }
+
+    inline bool operator()(uint32_t i, const std::unique_ptr<A>& s) const noexcept { return i < s->GetId(); }
 };
 
 template <class T>
@@ -39,7 +44,7 @@ constexpr void ignore(const T&) {}
 } // namespace
 
 struct VectorSearchFixture : benchmark::Fixture {
-    void SetUp(const ::benchmark::State& state)
+    void SetUp(const ::benchmark::State& state) final
     {
         if (state.thread_index == 0) {
 
@@ -50,9 +55,10 @@ struct VectorSearchFixture : benchmark::Fixture {
 
             benchmark::DoNotOptimize(searches_.data());
 
-            std::mt19937 rng;
+            std::random_device rd{};
+            std::mt19937 rng{rd()};
 
-            rng.seed(std::random_device()());
+            rng.seed(rd());
 
             std::variant<std::uniform_real_distribution<double>,
                     std::normal_distribution<double>,
@@ -81,20 +87,17 @@ struct VectorSearchFixture : benchmark::Fixture {
             tmp.erase(std::unique(std::begin(tmp), std::end(tmp)), std::end(tmp));
 
             for (auto s : tmp) {
-                // records_.push_back(new A(s));
                 records_.emplace_back(s);
+                //records_.emplace_back(std::make_unique<A>(s));
             }
 
             benchmark::ClobberMemory();
         }
     }
 
-    void TearDown(const ::benchmark::State& state)
+    void TearDown(const ::benchmark::State& state) final
     {
         if (state.thread_index == 0) {
-            // for (auto item : records_) {
-            //    delete item;
-            //}
             records_.clear();
             searches_.clear();
             records_.shrink_to_fit();
@@ -103,7 +106,7 @@ struct VectorSearchFixture : benchmark::Fixture {
         }
     }
 
-    // std::vector<A*> records_;
+    //std::vector<std::unique_ptr<A>> records_;
     std::vector<A> records_;
     std::vector<uint32_t> searches_;
 };
@@ -279,7 +282,7 @@ RandomIterator InterpolationSearch(RandomIterator begin, RandomIterator end, Val
             break;
         }
 
-        difference_type probe = static_cast<difference_type>((count - 1) * lerp(*begin, *last, key));
+        auto probe = static_cast<difference_type>((count - 1) * lerp(*begin, *last, key));
 
         if (comp(key, begin[probe])) {
             std::advance(last, probe - count);
@@ -378,6 +381,7 @@ RandomIterator FibonacciSearch(RandomIterator begin, RandomIterator end, const V
 
     while (*itr > 0) {
         if (comp(key, begin[*itr - 1])) {
+            std::advance(end, *itr - std::distance(begin, end));
             --itr;
         } else if (comp(begin[*itr - 1], key)) {
             std::advance(begin, *itr);
@@ -398,7 +402,7 @@ ForwardIt BranchLessBinarySearch(ForwardIt begin, ForwardIt end, const Value& ke
     using difference_type = typename std::iterator_traits<ForwardIt>::difference_type;
 
     difference_type count = std::distance(begin, end);
-
+#pragma omp ivdep
     while (difference_type half = count >> 1) {
         if (!comp(key, begin[half])) {
             std::advance(begin, half);

@@ -8,22 +8,18 @@ add_executable (Concurency "Concurency.cpp" "Concurency.h")
 
 if (MSVC)
 	string(REGEX REPLACE "/W[0-4]" "/W4" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
-	target_compile_options(Concurency PRIVATE /Oy- /W4 /WX)
+	target_compile_options(Concurency PRIVATE /Oy- /W4 /WX /openmp-experimental)
 else()
-	target_compile_options(Concurency PRIVATE -fno-omit-frame-pointer -Wall -Wextra -pedantic -Werror)
+	target_compile_options(Concurency PRIVATE -fno-omit-frame-pointer -Wall -Wextra -pedantic -Werror -fcoroutines-ts -stdlib=libc++)
 endif()
 
 find_package(benchmark CONFIG REQUIRED)
-
-find_package(OpenMP)
-
 set_target_properties(benchmark::benchmark benchmark::benchmark_main PROPERTIES
 	MAP_IMPORTED_CONFIG_MINSIZEREL Release
 	MAP_IMPORTED_CONFIG_RELWITHDEBINFO Release
 )
 
-#add_executable (Concurency "Concurency.cpp" "Concurency.h")
-
+find_package(OpenMP)
 if(OpenMP_CXX_FOUND)
     target_link_libraries(Concurency PUBLIC OpenMP::OpenMP_CXX)
 endif()
