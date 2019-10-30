@@ -8,7 +8,6 @@ size_t X(int a)
 {
     size_t result = 0;
 
-    #pragma omp simd
     for (size_t  i = 1; i < 1000000000; i++) {
         result += i;
         result /= i;

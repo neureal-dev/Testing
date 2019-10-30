@@ -8,6 +8,25 @@
 
 //using namespace std;
 
+#include <experimental/coroutine>
+#include <experimental/generator>
+
+std::experimental::generator<long long> fibonacciGenerator(long long end)
+{
+    long long curr = 0, next = 1;
+    {
+        for (; next <= end;) {
+            next = curr + next;
+            curr = next - curr;
+        }
+    }
+    while (curr > 0) {
+        curr = next - curr;
+        next = next - curr;
+        co_yield curr;
+    }
+}
+
 namespace qb {
 
 
