@@ -6,6 +6,7 @@
 #include <random>
 #include <vector>
 #include <array>
+#include <string>
 
 struct A {
     A(uint32_t id, uint32_t ind)
@@ -14,6 +15,8 @@ struct A {
     }
     uint32_t id_;
 	uint32_t ind_;
+
+    std::u8string asd;
 
 	std::array<uint64_t, 32> ids;
 };
@@ -672,7 +675,7 @@ static void BM_SomeFunction(benchmark::State& state)
 	i = 0;
 	for (auto _ : state) {
 		//benchmark::DoNotOptimize(
-		//auto a = FibonacciSearch(std::cbegin(vect), std::cend(vect), vecn[++i % vecn.size()], Comp{});
+		auto a = FibonacciSearch(std::cbegin(vect), std::cend(vect), vecn[++i % vecn.size()], Comp{});
 		//auto r = HybridSearch(vect, vecn[++i % vecn.size()]);
 		//auto a = BranchLessBinarySearch(std::cbegin(vect), std::cend(vect), vecn[++i % vecn.size()],Comp{});
 		//auto a = HybridInterpolationSearch(std::cbegin(vect), std::cend(vect), vecn[++i % vecn.size()], Comp{}, [](A* first, A* last, uint32_t key) { return double(key - first->id_) / double(last->id_ - first->id_); });

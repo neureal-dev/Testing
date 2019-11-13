@@ -1,7 +1,12 @@
 ﻿# CMakeList.txt : CMake project for Performance, include source and define
 # project specific logic here.
 #
-cmake_minimum_required (VERSION 3.8)
+cmake_minimum_required (VERSION 3.14)
+
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
+
 
 find_package(benchmark CONFIG REQUIRED)
 
@@ -39,6 +44,11 @@ find_package(benchmark CONFIG REQUIRED)
 add_executable (Performance "Performance.cpp" "Performance.h")
 
 target_link_libraries(Performance PRIVATE benchmark::benchmark benchmark::benchmark_main)
+
+set_target_properties(benchmark::benchmark benchmark::benchmark_main PROPERTIES
+	MAP_IMPORTED_CONFIG_MINSIZEREL Release
+	MAP_IMPORTED_CONFIG_RELWITHDEBINFO Release
+)
 
 #target_link_libraries(Performance benchmark)
 #target_link_libraries(Performance ${benchmark_LIBRARIES})

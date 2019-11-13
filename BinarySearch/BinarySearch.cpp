@@ -3,8 +3,15 @@
 
 #include "BinarySearch.h"
 #include <algorithm>
+#include <array>
 #include <iterator>
+#include <string>
 #include <vector>
+#include <functional>
+
+using charstr = std::basic_string<unsigned char>;
+
+const std::array<char, 5> ga{ "test" };
 
 //using namespace std;
 
@@ -13,13 +20,15 @@
 
 std::experimental::generator<long long> fibonacciGenerator(long long end)
 {
+    const char a[] = "test";
     long long curr = 0, next = 1;
-    {
+    /*    {
         for (; next <= end;) {
             next = curr + next;
             curr = next - curr;
         }
     }
+*/
     while (curr > 0) {
         curr = next - curr;
         next = next - curr;
@@ -29,100 +38,97 @@ std::experimental::generator<long long> fibonacciGenerator(long long end)
 
 namespace qb {
 
-
 template <typename Integer>
 class FibonacciIterator : public std::iterator<std::bidirectional_iterator_tag, const Integer> {
 public:
-	explicit FibonacciIterator()
-		: curr(0)
-		, next(1)
-	{
-	}
+    explicit FibonacciIterator()
+        : curr(0)
+        , next(1)
+    {
+    }
 
-	explicit FibonacciIterator(Integer target)
-		: curr(0)
-		, next(1)
-	{
-		while (next <= target) {
-			next = curr + next;
-			curr = next - curr;
-		}
-	}
+    explicit FibonacciIterator(Integer target)
+        : curr(0)
+        , next(1)
+    {
+        while (next <= target) {
+            next = curr + next;
+            curr = next - curr;
+        }
+    }
 
-	const Integer& operator*() const { return curr; }
+    const Integer& operator*() const { return curr; }
 
-	const Integer* operator->() const { return &**this; }
+    const Integer* operator->() const { return &**this; }
 
-	FibonacciIterator& operator++()
-	{
-		next = curr + next;
-		curr = next - curr;
-		return *this;
-	}
+    FibonacciIterator& operator++()
+    {
+        next = curr + next;
+        curr = next - curr;
+        return *this;
+    }
 
-	const FibonacciIterator operator++(int)
-	{
-		FibonacciIterator result = *this;
-		++*this;
-		return result;
-	}
+    const FibonacciIterator operator++(int)
+    {
+        FibonacciIterator result = *this;
+        ++*this;
+        return result;
+    }
 
-	FibonacciIterator& operator--()
-	{
-		curr = next - curr;
-		next = next - curr;
-		return *this;
-	}
+    FibonacciIterator& operator--()
+    {
+        curr = next - curr;
+        next = next - curr;
+        return *this;
+    }
 
-	const FibonacciIterator operator--(int)
-	{
-		FibonacciIterator result = *this;
-		--*this;
-		return result;
-	}
+    const FibonacciIterator operator--(int)
+    {
+        FibonacciIterator result = *this;
+        --*this;
+        return result;
+    }
 
 private:
-	Integer curr;
-	Integer next;
+    Integer curr;
+    Integer next;
 };
 
 /* Comparison functions for FibonacciIterator. */
 template <typename Integer>
 constexpr bool operator==(const FibonacciIterator<Integer>& lhs, const FibonacciIterator<Integer>& rhs)
 {
-	return lhs.curr == rhs.curr;
+    return lhs.curr == rhs.curr;
 }
 
 /* Disequality implemented in terms of equality. */
 template <typename Integer>
 bool operator!=(const FibonacciIterator<Integer>& lhs, const FibonacciIterator<Integer>& rhs)
 {
-	return !(lhs == rhs);
+    return !(lhs == rhs);
 }
-
 
 template <class ForwardIt, class Value, typename Comparator>
 ForwardIt Search(ForwardIt begin, ForwardIt end, const Value& key, Comparator comp)
 {
-	using difference_type = typename std::iterator_traits<ForwardIt>::difference_type;
+    using difference_type = typename std::iterator_traits<ForwardIt>::difference_type;
 
-	difference_type count = std::distance(begin, end);
+    difference_type count = std::distance(begin, end);
 
-	while (difference_type half = count >> 1) {
-		
-		if (comp(begin[half], key)) {
-			std::advance(begin, ++half);
-		}
-		else {
-			if (!comp(key, begin[half])) {
-				std::advance(begin, half);
-				break;
-			}
-			//std::advance(end, half - count);
-		}
-		count -= half;
-	}
-	return (begin != end && !comp(*begin, key) && !comp(key, *begin)) ? begin : end;
+    while (difference_type half = count >> 1) {
+
+        if (comp(begin[half], key)) {
+            std::advance(begin, ++half);
+        } else {
+            if (!comp(key, begin[half])) {
+                std::advance(begin, half);
+                break;
+            }
+            //std::advance(end, half - count);
+        }
+        count -= half;
+    }
+    return (begin != end && !comp(*begin, key) && !comp(key, *begin)) ? begin : end;
 }
 
 }
@@ -130,8 +136,8 @@ ForwardIt Search(ForwardIt begin, ForwardIt end, const Value& key, Comparator co
 size_t bsearch(const std::vector<uint32_t>& arr, uint32_t x)
 {
     auto itr = qb::Search(std::cbegin(arr), std::cend(arr), x,
-		std::less<uint32_t>{}//, [](uint32_t first, uint32_t last, uint32_t key) -> double { return (double(key) - first) / (last - first); }
-		);
+        std::less<uint32_t> {} //, [](uint32_t first, uint32_t last, uint32_t key) -> double { return (double(key) - first) / (last - first); }
+    );
     //auto itr = FibonacciSearch(std::cbegin(arr), std::cend(arr), x, std::less<uint32_t>{});
     if (itr != std::cend(arr)) {
         return std::distance(std::cbegin(arr), itr);
@@ -141,11 +147,53 @@ size_t bsearch(const std::vector<uint32_t>& arr, uint32_t x)
 
 #include <random>
 
+
+struct LessThan7{
+    LessThan7()
+    {
+        s.push_back(7);
+    }
+
+    bool operator()(int i) const
+    {
+        std::cout << "test " << s.data() << std::endl;
+        return i < s.back();
+    }
+
+    std::vector<int> s;
+};
+
+
+
 int main()
 {
+    LessThan7 fl;
+    std::cout << fl.s.data() << std::endl;
+
+    auto fa = std::not_fn(std::move(fl));
+
+    for (auto i : { 1, 2, 31, 41, 61 }) {
+
+        std::cout << int(fa(i)) << std::endl;
+    }
+    return EXIT_SUCCESS;
+}
+
+
+    uint8_t a = 245;
+
+    unsigned char z = a;
+
+    char b = z;
+
+    unsigned char y = b;
+
+    std::cout << std::hex << int(a) << int(b) << int(z) << int(y) << std::endl;
+    return EXIT_SUCCESS;
+
     //std::vector<uint32_t> vec = {10, 11, 11, 12, 18, 110, 111};
     //std::vector<uint32_t> vec = {10, 11, 12, 14, 16, 18, 110};
-    std::vector<uint32_t> vec = { 10, 12, 14,16, 18, 110, 111};
+    std::vector<uint32_t> vec = { 10, 12, 14, 16, 18, 110, 111 };
     std::cout << bsearch(vec, 1) << std::endl;
     std::cout << bsearch(vec, 10) << std::endl;
     std::cout << bsearch(vec, 11) << std::endl;
@@ -157,7 +205,7 @@ int main()
     std::cout << bsearch(vec, 120) << std::endl;
     std::cout << bsearch(vec, 111) << std::endl;
     std::cout << bsearch(vec, 112) << std::endl;
-	std::cout << "finish " << std::endl;
+    std::cout << "finish " << std::endl;
     while (1) {
         for (qb::FibonacciIterator<uint32_t> itr(0); *itr < 500000000; ++itr) {
             std::vector<uint32_t> vec(*itr, 0);
