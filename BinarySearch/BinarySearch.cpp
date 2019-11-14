@@ -172,12 +172,15 @@ int main()
 
     auto fa = std::not_fn(std::move(fl));
 
-    for (auto i : { 1, 2, 31, 41, 61 }) {
+    for (auto i : { 8, 7, 6, 5, 4, 3, 2, 1 }) {
+        const size_t xorr = (0x10 << (4 * (i - 1))) - 1;
+        size_t lid = 39 >> (4 * (i - 1));
+        size_t llid = 39 & xorr;
 
-        std::cout << int(fa(i)) << std::endl;
+        std::cout << lid << " " << llid << " " << int(fa(i)) << std::endl;
     }
     return EXIT_SUCCESS;
-}
+//}
 
 
     uint8_t a = 245;
