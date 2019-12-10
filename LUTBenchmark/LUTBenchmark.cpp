@@ -17,7 +17,7 @@ struct A {
     {
     }
 
-    [[nodiscard]] uint32_t GetId() const { return id_; }
+    [[nodiscard]] uint32_t GetId() const noexcept { return id_; }
 
     uint32_t id_;
     uint64_t id1_;
@@ -68,6 +68,7 @@ public:
 
     T* getNode(uint32_t id) const
     {
+        constexpr uint64_t xoffset = W * (N - 1);
         //std::cout << node_ptrss << nodes << std::endl;
         //size_t ref_id = ;
         auto node = list.nodes[getReferenceId(id)];
@@ -76,9 +77,9 @@ public:
 
     void release()
     {
-        //for (auto& a : list.nodes) {
+        for (auto& a : list.nodes) {
         //if (a) a.reset();
-        //}
+        }
     }
 
 public:
