@@ -1,0 +1,63 @@
+Language: Cpp
+BasedOnStyle: WebKit
+Standard: Cpp11
+
+AccessModifierOffset: -4
+
+AlignAfterOpenBracket: DontAlign
+AlignEscapedNewlines: DontAlign
+AlignOperands: true
+
+AllowShortBlocksOnASingleLine: false
+AllowShortCaseLabelsOnASingleLine: false
+AllowShortFunctionsOnASingleLine: All
+AllowShortIfStatementsOnASingleLine: true
+AllowAllParametersOfDeclarationOnNextLine: true
+
+AlwaysBreakBeforeMultilineStrings: true
+AlwaysBreakTemplateDeclarations: MultiLine
+
+BreakBeforeBinaryOperators: NonAssignment
+BreakBeforeTernaryOperators: true
+BreakConstructorInitializersBeforeComma: false
+BreakConstructorInitializers: BeforeColon
+BreakInheritanceList: BeforeComma
+BreakStringLiterals: false
+
+BinPackArguments: false
+BinPackParameters: true
+
+ColumnLimit: 0
+Cpp11BracedListStyle: true
+CompactNamespaces: false
+ConstructorInitializerIndentWidth: 8
+ConstructorInitializerAllOnOneLineOrOnePerLine: true
+ContinuationIndentWidth: 8
+
+FixNamespaceComments: true
+
+IncludeBlocks: Preserve
+IndentWidth: 4
+
+MaxEmptyLinesToKeep: 1
+
+NamespaceIndentation: None
+
+PointerAlignment: Left
+
+ReflowComments: false
+
+SortIncludes: true
+SortUsingDeclarations: true
+
+SpaceBeforeCpp11BracedList: false
+SpaceBeforeCtorInitializerColon: true
+SpaceBeforeInheritanceColon: true
+SpacesInCStyleCastParentheses: false
+SpacesInContainerLiterals: false
+SpacesInSquareBrackets: false
+SpacesInParentheses: false
+
+TabWidth: 4
+
+UseTab: Never
