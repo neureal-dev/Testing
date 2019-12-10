@@ -12,7 +12,7 @@
 #include <benchmark/benchmark.h>
 
 struct A {
-    A(uint32_t id)
+    explicit A(uint32_t id)
         : id_(id)
         , id1_ {}
         , id2_ {}
@@ -25,71 +25,105 @@ struct A {
     uint32_t id_;
     uint64_t id1_;
     uint64_t id2_;
-    std::array<uint64_t, 2> id4_;
+    std::array<uint64_t, 32> id4_;
 };
 
-template <typename T>
-class rbnode {
-public:
-    rbnode()
-    {
-    }
+template <typename T, int W>
+struct rbnode {
+    //    rbnode()
+    //  {
+    //}
 
-    std::array<std::unique_ptr<T>, 16> nodes;
+    std::array<T, (0x1 << W)> nodes;
 };
 
-template <typename T, int N>
+static thread_local size_t nodes = 0;
+static char* node_ptrs = nullptr;
+static char* node_ptrss = nullptr;
+
+template <typename T, int W, int N>
 class rblist {
 public:
-    typedef rblist<T, N - 1> nodetype;
-    typedef rbnode<nodetype> ltype;
+    using type = rblist<T, W, N - 1>;
+    //using ltype = rbnode<std::unique_ptr<type>, W>;
+    using ltype = rbnode<type*, W>;
 
     void addNode(uint32_t id, T* element)
     {
-        // 0001 0010 0100
-        uint32_t lid = id >> (4 * (N - 1));
-        const uint64_t xorr = (0x1 << (4 * (N - 1))) - 1;
-        id &= xorr;
-        lid &= xorr;
-        //std::cout << "addnode " << N << id << " "<< lid  << std::endl;
-        if (!list.nodes[lid]) {
-            list.nodes[lid] = std::make_unique<nodetype>();
+
+        if (node_ptrs == nullptr) {
+            node_ptrs = new char[1024 * 1024 * 1024];
+            memset(node_ptrs, '\0', 1024 * 1024 * 1024);
+            node_ptrss = node_ptrs;
+            list.nodes.fill(nullptr);
         }
-        list.nodes[lid]->addNode(id, element);
+
+        size_t ref_id = getReferenceId(id);
+        if (!list.nodes[ref_id]) {
+            nodes++;
+            //list.nodes[ref_id] = std::make_unique<type>();
+            list.nodes[ref_id] = new (node_ptrss) type();
+            node_ptrss += sizeof(type);
+            list.nodes[ref_id]->list.nodes.fill(nullptr);
+        }
+        list.nodes[ref_id]->addNode(id, element);
     }
 
-    T* getNode(uint32_t id)
+    T* getNode(uint32_t id) const
     {
-        uint32_t lid = id >> (4 * (N - 1));
-        const uint64_t xorr = (0x1u << (4 * (N - 1))) - 1;
-        id &= xorr;
-        lid &= xorr;
-
-        return list.nodes[lid] ? list.nodes[lid]->getNode(id) : nullptr;
-
+        //std::cout << node_ptrss << nodes << std::endl;
+        //size_t ref_id = ;
+        auto node = list.nodes[getReferenceId(id)];
+        return node ? node->getNode(id) : nullptr;
     }
+
+    void release()
+    {
+        //for (auto& a : list.nodes) {
+        //if (a) a.reset();
+        //}
+    }
+
+public:
+    inline size_t getReferenceId(uint32_t id) const
+    {
+        constexpr uint64_t xoffset = W * (N - 1);
+        constexpr uint64_t xbits = (0x1 << W) - 1;
+
+        return { (id >> xoffset) & xbits };
+    }
+
     ltype list;
 };
 
-template <typename T>
-class rblist<T, 0> {
+template <typename T, int W>
+class rblist<T, W, 0> {
 public:
+    using type = T*;
+    using ltype = rbnode<type, W>;
 
-    typedef rbnode<T> ltype;
-
-    void addNode(uint32_t id, T* element)
+    void addNode(uint32_t id, type element)
     {
-        //std::cout << "set" << id << " " << element->id_ << " " << element << std::endl;
-        list[id] = element;
+        list.nodes[getReferenceId(id)] = element;
     }
 
-    T* getNode(uint32_t id)
+    type getNode(uint32_t id) const
     {
-        //std::cout << "get" << id << " " << list.nodes[id] << std::endl;
-        return list[id];
+        return list.nodes[getReferenceId(id)];
     }
 
-    std::array<T*, 16> list;
+    //private:
+
+    inline auto
+    getReferenceId(uint32_t id) const
+        -> size_t
+    {
+        constexpr size_t xbits = ((0x1 << W) - 1);
+
+        return { (id >> W) & xbits };
+    }
+
+    ltype list;
 };
 
 namespace {
@@ -112,6 +146,8 @@ template <class T>
 constexpr void ignore(const T&) {}
 
 } // namespace
+
+rblist<A, 2, 16> glst;
 
 struct VectorSearchFixture : benchmark::Fixture {
     void SetUp(const ::benchmark::State& state) final
@@ -161,6 +197,13 @@ struct VectorSearchFixture : benchmark::Fixture {
                 //records_.emplace_back(std::make_unique<A>(s));
             }
 
+            for (auto& r : records_) {
+                (void)records_;
+                (void)r;
+                glst.addNode(r.id_, &r);
+            }
+            //std::cout << "nodes: " << nodes << std::endl;
+
             benchmark::ClobberMemory();
         }
     }
@@ -168,6 +211,7 @@ struct VectorSearchFixture : benchmark::Fixture {
     void TearDown(const ::benchmark::State& state) final
     {
         if (state.thread_index == 0) {
+            glst.release();
             records_.clear();
             searches_.clear();
             records_.shrink_to_fit();
@@ -511,12 +555,16 @@ ForwardIt BranchFullBinarySearch(ForwardIt begin, ForwardIt end, const Value& ke
 BENCHMARK_DEFINE_F(VectorSearchFixture, RBTrie)
 (benchmark::State& state)
 {
+    nodes = 0;
     uint64_t sum {}, itr {};
-    rblist<A, 8> lst;
-
-    for (auto& r : records_) {
-        lst.addNode(r.id_, &r);
-    }
+    auto& lst = glst;
+    //rblist<A, 2, 16> lst;
+    //if (state.thread_index == 0) {
+    //    for (auto& r : records_) {
+    //        lst.addNode(r.id_, &r);
+    // /   }
+    //    std::cout << records_.size() << " nodes " << nodes << std::endl;
+    //}
 
     for (auto _ : state) {
         ignore(_);
@@ -526,11 +574,17 @@ BENCHMARK_DEFINE_F(VectorSearchFixture, RBTrie)
             benchmark::DoNotOptimize(sum += rec->id_);
         }
     }
+    if (state.thread_index == 0) {
+        //delete[] node_ptrs;
+        //node_ptrs = nullptr;
+        //std::cout << "nodes: " << nodes << std::endl;
+    }
 }
 BENCHMARK_REGISTER_F(VectorSearchFixture, RBTrie)
     ->RangeMultiplier(0xF + 1)
     ->Ranges({ { 0xF + 1, 0xFFFFFF + 1 }, { 0, 2 } })
     ->Complexity()
+    ->MeasureProcessCPUTime()
     ->Threads(6);
 
 BENCHMARK_DEFINE_F(VectorSearchFixture, HybridInterpolationIt)
@@ -565,6 +619,7 @@ BENCHMARK_REGISTER_F(VectorSearchFixture, HybridInterpolationIt)
     ->RangeMultiplier(0xF + 1)
     ->Ranges({ { 0xF + 1, 0xFFFFFF + 1 }, { 0, 2 } })
     ->Complexity()
+    ->MeasureProcessCPUTime()
     ->Threads(6);
 
 BENCHMARK_DEFINE_F(VectorSearchFixture, InterpolationIt)
@@ -599,6 +654,7 @@ BENCHMARK_REGISTER_F(VectorSearchFixture, InterpolationIt)
     ->RangeMultiplier(0xF + 1)
     ->Ranges({ { 0xF + 1, 0xFFFFFF + 1 }, { 0, 2 } })
     ->Complexity()
+    ->MeasureProcessCPUTime()
     ->Threads(6);
 
 BENCHMARK_DEFINE_F(VectorSearchFixture, FibonacciIt)
@@ -624,6 +680,7 @@ BENCHMARK_REGISTER_F(VectorSearchFixture, FibonacciIt)
     ->RangeMultiplier(0xF + 1)
     ->Ranges({ { 0xF + 1, 0xFFFFFF + 1 }, { 0, 2 } })
     ->Complexity()
+    ->MeasureProcessCPUTime()
     ->Threads(6);
 
 BENCHMARK_DEFINE_F(VectorSearchFixture, BranchLessIt)
@@ -649,6 +706,7 @@ BENCHMARK_REGISTER_F(VectorSearchFixture, BranchLessIt)
     ->RangeMultiplier(0xF + 1)
     ->Ranges({ { 0xF + 1, 0xFFFFFF + 1 }, { 0, 2 } })
     ->Complexity()
+    ->MeasureProcessCPUTime()
     ->Threads(6);
 
 BENCHMARK_DEFINE_F(VectorSearchFixture, BranchFullIt)
@@ -674,6 +732,7 @@ BENCHMARK_REGISTER_F(VectorSearchFixture, BranchFullIt)
     ->RangeMultiplier(0xF + 1)
     ->Ranges({ { 0xF + 1, 0xFFFFFF + 1 }, { 0, 2 } })
     ->Complexity()
+    ->MeasureProcessCPUTime()
     ->Threads(6);
 
 BENCHMARK_DEFINE_F(VectorSearchFixture, std_equal_range)
@@ -698,6 +757,7 @@ BENCHMARK_REGISTER_F(VectorSearchFixture, std_equal_range)
     ->RangeMultiplier(0xF + 1)
     ->Ranges({ { 0xF + 1, 0xFFFFFF + 1 }, { 0, 2 } })
     ->Complexity()
+    ->MeasureProcessCPUTime()
     ->Threads(6);
 
 BENCHMARK_DEFINE_F(VectorSearchFixture, std_lower_bound)
@@ -724,6 +784,7 @@ BENCHMARK_REGISTER_F(VectorSearchFixture, std_lower_bound)
     ->RangeMultiplier(0xF + 1)
     ->Ranges({ { 0xF + 1, 0xFFFFFF + 1 }, { 0, 2 } })
     ->Complexity()
+    ->MeasureProcessCPUTime()
     ->Threads(6);
 
 BENCHMARK_DEFINE_F(VectorSearchFixture, std_partition_point)
@@ -749,6 +810,7 @@ BENCHMARK_REGISTER_F(VectorSearchFixture, std_partition_point)
     ->RangeMultiplier(0xF + 1)
     ->Ranges({ { 0xF + 1, 0xFFFFFF + 1 }, { 0, 2 } })
     ->Complexity()
+    ->MeasureProcessCPUTime()
     ->Threads(6);
 
 BENCHMARK_MAIN();

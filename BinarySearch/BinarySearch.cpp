@@ -14,7 +14,7 @@ using charstr = std::basic_string<unsigned char>;
 const std::array<char, 5> ga{ "test" };
 
 //using namespace std;
-
+/*
 #include <experimental/coroutine>
 #include <experimental/generator>
 
@@ -22,20 +22,20 @@ std::experimental::generator<long long> fibonacciGenerator(long long end)
 {
     const char a[] = "test";
     long long curr = 0, next = 1;
-    /*    {
+    //*    {
         for (; next <= end;) {
             next = curr + next;
             curr = next - curr;
         }
     }
-*/
+///*
     while (curr > 0) {
         curr = next - curr;
         next = next - curr;
         co_yield curr;
     }
 }
-
+*/
 namespace qb {
 
 template <typename Integer>
@@ -147,41 +147,91 @@ size_t bsearch(const std::vector<uint32_t>& arr, uint32_t x)
 
 #include <random>
 
+struct strr {
 
-struct LessThan7{
-    LessThan7()
+    strr()
     {
-        s.push_back(7);
+        std::cout << "strr const" << std::endl;
     }
 
-    bool operator()(int i) const
+    strr(const char *)
     {
-        std::cout << "test " << s.data() << std::endl;
-        return i < s.back();
+        std::cout << "strr char * const" << std::endl;
     }
 
-    std::vector<int> s;
+    strr(strr&&)
+    {
+        std::cout << "strr move const" << std::endl;
+    }
+
+    strr(const strr&)
+    {
+        std::cout << "strr copy const" << std::endl;
+    }
+
+    ~strr()
+    {
+        std::cout << "strr dest" << std::endl;
+    }
 };
 
 
+struct A {
+/*
+    A(strr a) : str(std::move(a))
+    {
+        std::cout << "str copy const" << std::endl;
+    }
+/*/
+    
+    A(strr&& a)
+        : str(std::move(a))
+    {
+        std::cout << "str move const" << std::endl;
+    }
+    
+    A(const A& a) : str(a.str)
+    {
+        std::cout << "copy const" << std::endl;
+    }
+  //*/  
+    A(A&& a)
+        : str(std::move(a.str))
+    {
+        std::cout << "move const" << std::endl;
+    }
+
+
+    ~A()
+    {
+        std::cout << "dest" << std::endl;
+    }
+
+
+    strr str;
+};
+
+
+struct tttt {
+    int32_t a;
+    uint32_t b;
+    void* p;
+
+    uint64_t z;
+};
 
 int main()
 {
-    LessThan7 fl;
-    std::cout << fl.s.data() << std::endl;
+    std::cout << sizeof(tttt) << std::endl;
+        strr sss("asdfasdf");
+        //A aaa("asfasdf");
+        A aaa(std::move(sss));
+    
+    //strr rrrr = aaa.str;
+        std::string aaaa;
+        decltype(aaaa)::size_type s;
 
-    auto fa = std::not_fn(std::move(fl));
-
-    for (auto i : { 8, 7, 6, 5, 4, 3, 2, 1 }) {
-        const size_t xorr = (0x10 << (4 * (i - 1))) - 1;
-        size_t lid = 39 >> (4 * (i - 1));
-        size_t llid = 39 & xorr;
-
-        std::cout << lid << " " << llid << " " << int(fa(i)) << std::endl;
-    }
     return EXIT_SUCCESS;
-//}
-
 
     uint8_t a = 245;
 
@@ -190,6 +240,10 @@ int main()
     char b = z;
 
     unsigned char y = b;
+
+    if (auto i = std::max<unsigned char>(y, z); i != 10) {
+
+    }
 
     std::cout << std::hex << int(a) << int(b) << int(z) << int(y) << std::endl;
     return EXIT_SUCCESS;
