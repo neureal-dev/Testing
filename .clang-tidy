@@ -5,6 +5,7 @@ Checks: >
     -cert-err58-cpp,
     cppcoreguidlines-*,
     modernize-*,
+    -modernize-use-trailing-return-type,
     misc-*,
     misc-assert-side-effect,
     misc-dangling-handle,
