@@ -13,10 +13,7 @@
 
 struct A {
     explicit A(uint32_t id)
-        : id_(id)
-        , id1_ {}
-        , id2_ {}
-        , id4_ {}
+            : id_(id), id1_{}, id2_{}, id4_{}
     {
     }
 
@@ -90,7 +87,7 @@ public:
         constexpr uint64_t xoffset = W * (N - 1);
         constexpr uint64_t xbits = (0x1 << W) - 1;
 
-        return { (id >> xoffset) & xbits };
+        return {(id >> xoffset) & xbits};
     }
 
     ltype list;
@@ -116,11 +113,11 @@ public:
 
     inline auto
     getReferenceId(uint32_t id) const
-        -> size_t
+            -> size_t
     {
         constexpr size_t xbits = ((0x1 << W) - 1);
 
-        return { (id >> W) & xbits };
+        return {(id >> W) & xbits};
     }
 
     ltype list;
@@ -161,15 +158,15 @@ struct VectorSearchFixture : benchmark::Fixture {
 
             benchmark::DoNotOptimize(searches_.data());
 
-            std::random_device rd {};
-            std::mt19937 rng { rd() };
+            std::random_device rd{};
+            std::mt19937 rng{rd()};
 
             rng.seed(rd());
 
             std::variant<std::uniform_real_distribution<double>,
-                std::normal_distribution<double>,
-                std::exponential_distribution<double>>
-                distribution;
+                    std::normal_distribution<double>,
+                    std::exponential_distribution<double>>
+                    distribution;
 
             if (state.range(1) == 0) {
                 distribution = std::uniform_real_distribution<double>(1.5, 7.5);
@@ -227,7 +224,7 @@ struct VectorSearchFixture : benchmark::Fixture {
 
 template <typename RandomIterator, typename Value, typename Comparator, typename Converter>
 RandomIterator HybriddddInterpolationSearch(
-    RandomIterator begin, RandomIterator end, Value key, Comparator comp, Converter lerp)
+        RandomIterator begin, RandomIterator end, Value key, Comparator comp, Converter lerp)
 {
     using difference_type = typename std::iterator_traits<RandomIterator>::difference_type;
 
@@ -314,7 +311,7 @@ RandomIterator HybriddddInterpolationSearch(
  */
 template <typename RandomIterator, typename Value, typename Comparator, typename Converter>
 RandomIterator HybridInterpolationSearch(
-    RandomIterator begin, RandomIterator end, Value key, Comparator comp, Converter lerp)
+        RandomIterator begin, RandomIterator end, Value key, Comparator comp, Converter lerp)
 {
     using difference_type = typename std::iterator_traits<RandomIterator>::difference_type;
 
@@ -422,14 +419,12 @@ public:
     using reference = Integer&;
 
     explicit FibonacciIterator()
-        : curr(0)
-        , next(1)
+            : curr(0), next(1)
     {
     }
 
     explicit FibonacciIterator(Integer target)
-        : curr(0)
-        , next(1)
+            : curr(0), next(1)
     {
         while (next <= target) {
             next = curr + next;
@@ -556,7 +551,7 @@ BENCHMARK_DEFINE_F(VectorSearchFixture, RBTrie)
 (benchmark::State& state)
 {
     nodes = 0;
-    uint64_t sum {}, itr {};
+    uint64_t sum{}, itr{};
     auto& lst = glst;
     //rblist<A, 2, 16> lst;
     //if (state.thread_index == 0) {
@@ -581,29 +576,29 @@ BENCHMARK_DEFINE_F(VectorSearchFixture, RBTrie)
     }
 }
 BENCHMARK_REGISTER_F(VectorSearchFixture, RBTrie)
-    ->RangeMultiplier(0xF + 1)
-    ->Ranges({ { 0xF + 1, 0xFFFFFF + 1 }, { 0, 2 } })
-    ->Complexity()
-    ->MeasureProcessCPUTime()
-    ->Threads(6);
+        ->RangeMultiplier(0xF + 1)
+        ->Ranges({{0xF + 1, 0xFFFFFF + 1}, {0, 2}})
+        ->Complexity()
+        ->MeasureProcessCPUTime()
+        ->Threads(6);
 
 BENCHMARK_DEFINE_F(VectorSearchFixture, HybridInterpolationIt)
 (benchmark::State& state)
 {
-    uint64_t sum {}, itr {};
+    uint64_t sum{}, itr{};
     for (auto _ : state) {
         ignore(_);
         auto rid = searches_[(searches_.size() - ++itr) % searches_.size()];
         auto low = InterpolationSearch(std::cbegin(records_),
-            std::cend(records_),
-            rid,
-            Comp {},
-            //            [](const A* first, const A* last, uint32_t key) -> double
-            //            { return (double(key) - first->GetId()) / (last->GetId() -
-            //            first->GetId()); });
-            [](const A& first, const A& last, uint32_t key) -> double {
-                return (double(key) - first.id_) / (last.id_ - first.id_);
-            });
+                std::cend(records_),
+                rid,
+                Comp{},
+                //            [](const A* first, const A* last, uint32_t key) -> double
+                //            { return (double(key) - first->GetId()) / (last->GetId() -
+                //            first->GetId()); });
+                [](const A& first, const A& last, uint32_t key) -> double {
+                    return (double(key) - first.id_) / (last.id_ - first.id_);
+                });
 
         if (low != std::cend(records_)) {
             if ((*low).id_ != rid) {
@@ -616,29 +611,29 @@ BENCHMARK_DEFINE_F(VectorSearchFixture, HybridInterpolationIt)
     }
 }
 BENCHMARK_REGISTER_F(VectorSearchFixture, HybridInterpolationIt)
-    ->RangeMultiplier(0xF + 1)
-    ->Ranges({ { 0xF + 1, 0xFFFFFF + 1 }, { 0, 2 } })
-    ->Complexity()
-    ->MeasureProcessCPUTime()
-    ->Threads(6);
+        ->RangeMultiplier(0xF + 1)
+        ->Ranges({{0xF + 1, 0xFFFFFF + 1}, {0, 2}})
+        ->Complexity()
+        ->MeasureProcessCPUTime()
+        ->Threads(6);
 
 BENCHMARK_DEFINE_F(VectorSearchFixture, InterpolationIt)
 (benchmark::State& state)
 {
-    uint64_t sum {}, itr {};
+    uint64_t sum{}, itr{};
     for (auto _ : state) {
         ignore(_);
         auto rid = searches_[(searches_.size() - ++itr) % searches_.size()];
         auto low = InterpolationSearch(std::cbegin(records_),
-            std::cend(records_),
-            rid,
-            Comp {},
-            //            [](const A* first, const A* last, uint32_t key) -> double
-            //            { return (double(key) - first->GetId()) / (last->GetId() -
-            //            first->GetId()); });
-            [](const A& first, const A& last, uint32_t key) -> double {
-                return (double(key) - first.id_) / (last.id_ - first.id_);
-            });
+                std::cend(records_),
+                rid,
+                Comp{},
+                //            [](const A* first, const A* last, uint32_t key) -> double
+                //            { return (double(key) - first->GetId()) / (last->GetId() -
+                //            first->GetId()); });
+                [](const A& first, const A& last, uint32_t key) -> double {
+                    return (double(key) - first.id_) / (last.id_ - first.id_);
+                });
 
         if (low != std::cend(records_)) {
             if ((*low).id_ != rid) {
@@ -651,20 +646,20 @@ BENCHMARK_DEFINE_F(VectorSearchFixture, InterpolationIt)
     }
 }
 BENCHMARK_REGISTER_F(VectorSearchFixture, InterpolationIt)
-    ->RangeMultiplier(0xF + 1)
-    ->Ranges({ { 0xF + 1, 0xFFFFFF + 1 }, { 0, 2 } })
-    ->Complexity()
-    ->MeasureProcessCPUTime()
-    ->Threads(6);
+        ->RangeMultiplier(0xF + 1)
+        ->Ranges({{0xF + 1, 0xFFFFFF + 1}, {0, 2}})
+        ->Complexity()
+        ->MeasureProcessCPUTime()
+        ->Threads(6);
 
 BENCHMARK_DEFINE_F(VectorSearchFixture, FibonacciIt)
 (benchmark::State& state)
 {
-    uint64_t sum {}, itr {};
+    uint64_t sum{}, itr{};
     for (auto _ : state) {
         ignore(_);
         auto rid = searches_[(searches_.size() - ++itr) % searches_.size()];
-        auto low = FibonacciSearch(std::cbegin(records_), std::cend(records_), rid, Comp {});
+        auto low = FibonacciSearch(std::cbegin(records_), std::cend(records_), rid, Comp{});
 
         if (low != std::cend(records_)) {
             if ((*low).id_ != rid) {
@@ -677,20 +672,20 @@ BENCHMARK_DEFINE_F(VectorSearchFixture, FibonacciIt)
     }
 }
 BENCHMARK_REGISTER_F(VectorSearchFixture, FibonacciIt)
-    ->RangeMultiplier(0xF + 1)
-    ->Ranges({ { 0xF + 1, 0xFFFFFF + 1 }, { 0, 2 } })
-    ->Complexity()
-    ->MeasureProcessCPUTime()
-    ->Threads(6);
+        ->RangeMultiplier(0xF + 1)
+        ->Ranges({{0xF + 1, 0xFFFFFF + 1}, {0, 2}})
+        ->Complexity()
+        ->MeasureProcessCPUTime()
+        ->Threads(6);
 
 BENCHMARK_DEFINE_F(VectorSearchFixture, BranchLessIt)
 (benchmark::State& state)
 {
-    uint64_t sum {}, itr {};
+    uint64_t sum{}, itr{};
     for (auto _ : state) {
         ignore(_);
         auto rid = searches_[(searches_.size() - ++itr) % searches_.size()];
-        auto low = BranchLessBinarySearch(std::cbegin(records_), std::cend(records_), rid, Comp {});
+        auto low = BranchLessBinarySearch(std::cbegin(records_), std::cend(records_), rid, Comp{});
 
         if (low != std::cend(records_)) {
             if ((*low).id_ != rid) {
@@ -703,20 +698,20 @@ BENCHMARK_DEFINE_F(VectorSearchFixture, BranchLessIt)
     }
 }
 BENCHMARK_REGISTER_F(VectorSearchFixture, BranchLessIt)
-    ->RangeMultiplier(0xF + 1)
-    ->Ranges({ { 0xF + 1, 0xFFFFFF + 1 }, { 0, 2 } })
-    ->Complexity()
-    ->MeasureProcessCPUTime()
-    ->Threads(6);
+        ->RangeMultiplier(0xF + 1)
+        ->Ranges({{0xF + 1, 0xFFFFFF + 1}, {0, 2}})
+        ->Complexity()
+        ->MeasureProcessCPUTime()
+        ->Threads(6);
 
 BENCHMARK_DEFINE_F(VectorSearchFixture, BranchFullIt)
 (benchmark::State& state)
 {
-    uint64_t sum {}, itr {};
+    uint64_t sum{}, itr{};
     for (auto _ : state) {
         ignore(_);
         auto rid = searches_[(searches_.size() - ++itr) % searches_.size()];
-        auto low = BranchFullBinarySearch(std::cbegin(records_), std::cend(records_), rid, Comp {});
+        auto low = BranchFullBinarySearch(std::cbegin(records_), std::cend(records_), rid, Comp{});
 
         if (low != std::cend(records_)) {
             if ((*low).id_ != rid) {
@@ -729,20 +724,20 @@ BENCHMARK_DEFINE_F(VectorSearchFixture, BranchFullIt)
     }
 }
 BENCHMARK_REGISTER_F(VectorSearchFixture, BranchFullIt)
-    ->RangeMultiplier(0xF + 1)
-    ->Ranges({ { 0xF + 1, 0xFFFFFF + 1 }, { 0, 2 } })
-    ->Complexity()
-    ->MeasureProcessCPUTime()
-    ->Threads(6);
+        ->RangeMultiplier(0xF + 1)
+        ->Ranges({{0xF + 1, 0xFFFFFF + 1}, {0, 2}})
+        ->Complexity()
+        ->MeasureProcessCPUTime()
+        ->Threads(6);
 
 BENCHMARK_DEFINE_F(VectorSearchFixture, std_equal_range)
 (benchmark::State& state)
 {
-    size_t itr {}, sum {};
+    size_t itr{}, sum{};
     for (auto _ : state) {
         ignore(_);
         auto id = searches_[(searches_.size() - ++itr) % searches_.size()];
-        auto first = std::equal_range(std::cbegin(records_), std::cend(records_), id, Comp {});
+        auto first = std::equal_range(std::cbegin(records_), std::cend(records_), id, Comp{});
         if (first.first != first.second) {
             if ((*first.first).id_ != id) {
                 std::cout << "error search" << std::endl;
@@ -754,16 +749,16 @@ BENCHMARK_DEFINE_F(VectorSearchFixture, std_equal_range)
     }
 }
 BENCHMARK_REGISTER_F(VectorSearchFixture, std_equal_range)
-    ->RangeMultiplier(0xF + 1)
-    ->Ranges({ { 0xF + 1, 0xFFFFFF + 1 }, { 0, 2 } })
-    ->Complexity()
-    ->MeasureProcessCPUTime()
-    ->Threads(6);
+        ->RangeMultiplier(0xF + 1)
+        ->Ranges({{0xF + 1, 0xFFFFFF + 1}, {0, 2}})
+        ->Complexity()
+        ->MeasureProcessCPUTime()
+        ->Threads(6);
 
 BENCHMARK_DEFINE_F(VectorSearchFixture, std_lower_bound)
 (benchmark::State& state)
 {
-    size_t itr {}, sum {};
+    size_t itr{}, sum{};
     for (auto _ : state) {
         ignore(_);
         auto id = searches_[(searches_.size() - ++itr) % searches_.size()];
@@ -781,21 +776,21 @@ BENCHMARK_DEFINE_F(VectorSearchFixture, std_lower_bound)
     }
 }
 BENCHMARK_REGISTER_F(VectorSearchFixture, std_lower_bound)
-    ->RangeMultiplier(0xF + 1)
-    ->Ranges({ { 0xF + 1, 0xFFFFFF + 1 }, { 0, 2 } })
-    ->Complexity()
-    ->MeasureProcessCPUTime()
-    ->Threads(6);
+        ->RangeMultiplier(0xF + 1)
+        ->Ranges({{0xF + 1, 0xFFFFFF + 1}, {0, 2}})
+        ->Complexity()
+        ->MeasureProcessCPUTime()
+        ->Threads(6);
 
 BENCHMARK_DEFINE_F(VectorSearchFixture, std_partition_point)
 (benchmark::State& state)
 {
-    size_t itr {}, sum {};
+    size_t itr{}, sum{};
     for (auto _ : state) {
         ignore(_);
         auto id = searches_[(searches_.size() - ++itr) % searches_.size()];
         auto first = std::partition_point(
-            std::cbegin(records_), std::cend(records_), [=](const auto& e) -> bool { return e.id_ < id; });
+                std::cbegin(records_), std::cend(records_), [=](const auto& e) -> bool { return e.id_ < id; });
         if (first != std::cend(records_)) {
             if ((*first).id_ != id) {
                 std::cout << "error search" << std::endl;
@@ -807,10 +802,10 @@ BENCHMARK_DEFINE_F(VectorSearchFixture, std_partition_point)
     }
 }
 BENCHMARK_REGISTER_F(VectorSearchFixture, std_partition_point)
-    ->RangeMultiplier(0xF + 1)
-    ->Ranges({ { 0xF + 1, 0xFFFFFF + 1 }, { 0, 2 } })
-    ->Complexity()
-    ->MeasureProcessCPUTime()
-    ->Threads(6);
+        ->RangeMultiplier(0xF + 1)
+        ->Ranges({{0xF + 1, 0xFFFFFF + 1}, {0, 2}})
+        ->Complexity()
+        ->MeasureProcessCPUTime()
+        ->Threads(6);
 
 BENCHMARK_MAIN();
