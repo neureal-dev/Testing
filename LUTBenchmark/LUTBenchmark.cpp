@@ -1,4 +1,6 @@
-﻿#include "LUTBenchmark.h"
+﻿#include <benchmark/benchmark.h>
+
+#include "LUTBenchmark.h"
 
 #include <algorithm>
 #include <array>
@@ -7,9 +9,9 @@
 #include <random>
 #include <utility>
 #include <variant>
+#include <memory>
 #include <vector>
-
-#include <benchmark/benchmark.h>
+#include <string.h>
 
 struct A {
     explicit A(uint32_t id)
@@ -34,7 +36,7 @@ struct rbnode {
     std::array<T, (0x1 << W)> nodes;
 };
 
-static thread_local size_t nodes = 0;
+static size_t nodes = 0;
 static char* node_ptrs = nullptr;
 static char* node_ptrss = nullptr;
 
@@ -50,7 +52,7 @@ public:
 
         if (node_ptrs == nullptr) {
             node_ptrs = new char[1024 * 1024 * 1024];
-            memset(node_ptrs, '\0', 1024 * 1024 * 1024);
+            (void)memset(node_ptrs, '\0', W * 256 * 1024 * 1024);
             node_ptrss = node_ptrs;
             list.nodes.fill(nullptr);
         }
@@ -68,7 +70,7 @@ public:
 
     T* getNode(uint32_t id) const
     {
-        constexpr uint64_t xoffset = W * (N - 1);
+        //constexpr uint64_t xoffset = W * (N - 1);
         //std::cout << node_ptrss << nodes << std::endl;
         //size_t ref_id = ;
         auto node = list.nodes[getReferenceId(id)];
@@ -77,9 +79,6 @@ public:
 
     void release()
     {
-        for (auto& a : list.nodes) {
-        //if (a) a.reset();
-        }
     }
 
 public:
@@ -102,6 +101,7 @@ public:
 
     void addNode(uint32_t id, type element)
     {
+        nodes++;
         list.nodes[getReferenceId(id)] = element;
     }
 
@@ -192,7 +192,6 @@ struct VectorSearchFixture : benchmark::Fixture {
 
             for (auto s : tmp) {
                 records_.emplace_back(s);
-                //records_.emplace_back(std::make_unique<A>(s));
             }
 
             for (auto& r : records_) {
@@ -200,7 +199,7 @@ struct VectorSearchFixture : benchmark::Fixture {
                 (void)r;
                 glst.addNode(r.id_, &r);
             }
-            //std::cout << "nodes: " << nodes << std::endl;
+            std::cout << "nodes: " << nodes << std::endl;
 
             benchmark::ClobberMemory();
         }
@@ -209,7 +208,10 @@ struct VectorSearchFixture : benchmark::Fixture {
     void TearDown(const ::benchmark::State& state) final
     {
         if (state.thread_index == 0) {
-            glst.release();
+            //glst.release();
+            delete[] node_ptrs;
+            node_ptrs = nullptr;
+            nodes = 0;
             records_.clear();
             searches_.clear();
             records_.shrink_to_fit();
@@ -218,7 +220,6 @@ struct VectorSearchFixture : benchmark::Fixture {
         }
     }
 
-    //std::vector<std::unique_ptr<A>> records_;
     std::vector<A> records_;
     std::vector<uint32_t> searches_;
 };
@@ -568,6 +569,8 @@ BENCHMARK_DEFINE_F(VectorSearchFixture, RBTrie)
         auto rec = lst.getNode(rid);
         if (rec) {
             benchmark::DoNotOptimize(sum += rec->id_);
+        } else {
+            std::cout << "not found error" << std::endl;
         }
     }
     if (state.thread_index == 0) {
@@ -575,13 +578,14 @@ BENCHMARK_DEFINE_F(VectorSearchFixture, RBTrie)
         //node_ptrs = nullptr;
         //std::cout << "nodes: " << nodes << std::endl;
     }
+    //std::cout << "nodes: " << nodes << std::endl;
 }
 BENCHMARK_REGISTER_F(VectorSearchFixture, RBTrie)
         ->RangeMultiplier(0xF + 1)
         ->Ranges({{0xF + 1, 0xFFFFFF + 1}, {0, 2}})
         ->Complexity()
-        ->MeasureProcessCPUTime()
-        ->Threads(6);
+        //->MeasureProcessCPUTime()
+        ->Threads(1);
 
 BENCHMARK_DEFINE_F(VectorSearchFixture, HybridInterpolationIt)
 (benchmark::State& state)
@@ -615,7 +619,7 @@ BENCHMARK_REGISTER_F(VectorSearchFixture, HybridInterpolationIt)
         ->RangeMultiplier(0xF + 1)
         ->Ranges({{0xF + 1, 0xFFFFFF + 1}, {0, 2}})
         ->Complexity()
-        ->MeasureProcessCPUTime()
+        //->MeasureProcessCPUTime()
         ->Threads(6);
 
 BENCHMARK_DEFINE_F(VectorSearchFixture, InterpolationIt)
@@ -650,7 +654,7 @@ BENCHMARK_REGISTER_F(VectorSearchFixture, InterpolationIt)
         ->RangeMultiplier(0xF + 1)
         ->Ranges({{0xF + 1, 0xFFFFFF + 1}, {0, 2}})
         ->Complexity()
-        ->MeasureProcessCPUTime()
+        //->MeasureProcessCPUTime()
         ->Threads(6);
 
 BENCHMARK_DEFINE_F(VectorSearchFixture, FibonacciIt)
@@ -676,7 +680,7 @@ BENCHMARK_REGISTER_F(VectorSearchFixture, FibonacciIt)
         ->RangeMultiplier(0xF + 1)
         ->Ranges({{0xF + 1, 0xFFFFFF + 1}, {0, 2}})
         ->Complexity()
-        ->MeasureProcessCPUTime()
+        //->MeasureProcessCPUTime()
         ->Threads(6);
 
 BENCHMARK_DEFINE_F(VectorSearchFixture, BranchLessIt)
@@ -702,7 +706,7 @@ BENCHMARK_REGISTER_F(VectorSearchFixture, BranchLessIt)
         ->RangeMultiplier(0xF + 1)
         ->Ranges({{0xF + 1, 0xFFFFFF + 1}, {0, 2}})
         ->Complexity()
-        ->MeasureProcessCPUTime()
+        //->MeasureProcessCPUTime()
         ->Threads(6);
 
 BENCHMARK_DEFINE_F(VectorSearchFixture, BranchFullIt)
@@ -728,7 +732,7 @@ BENCHMARK_REGISTER_F(VectorSearchFixture, BranchFullIt)
         ->RangeMultiplier(0xF + 1)
         ->Ranges({{0xF + 1, 0xFFFFFF + 1}, {0, 2}})
         ->Complexity()
-        ->MeasureProcessCPUTime()
+        //->MeasureProcessCPUTime()
         ->Threads(6);
 
 BENCHMARK_DEFINE_F(VectorSearchFixture, std_equal_range)
@@ -753,7 +757,7 @@ BENCHMARK_REGISTER_F(VectorSearchFixture, std_equal_range)
         ->RangeMultiplier(0xF + 1)
         ->Ranges({{0xF + 1, 0xFFFFFF + 1}, {0, 2}})
         ->Complexity()
-        ->MeasureProcessCPUTime()
+        //->MeasureProcessCPUTime()
         ->Threads(6);
 
 BENCHMARK_DEFINE_F(VectorSearchFixture, std_lower_bound)
@@ -780,7 +784,7 @@ BENCHMARK_REGISTER_F(VectorSearchFixture, std_lower_bound)
         ->RangeMultiplier(0xF + 1)
         ->Ranges({{0xF + 1, 0xFFFFFF + 1}, {0, 2}})
         ->Complexity()
-        ->MeasureProcessCPUTime()
+        //->MeasureProcessCPUTime()
         ->Threads(6);
 
 BENCHMARK_DEFINE_F(VectorSearchFixture, std_partition_point)
@@ -806,7 +810,7 @@ BENCHMARK_REGISTER_F(VectorSearchFixture, std_partition_point)
         ->RangeMultiplier(0xF + 1)
         ->Ranges({{0xF + 1, 0xFFFFFF + 1}, {0, 2}})
         ->Complexity()
-        ->MeasureProcessCPUTime()
+        //->MeasureProcessCPUTime()
         ->Threads(6);
 
 BENCHMARK_MAIN();

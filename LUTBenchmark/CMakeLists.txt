@@ -11,9 +11,10 @@ endif()
 
 find_package(benchmark CONFIG REQUIRED)
 
-#set_target_properties(benchmark::benchmark benchmark::benchmark_main PROPERTIES
-#E	MAP_IMPORTED_CONFIG_MINSIZEREL Release
-#	MAP_IMPORTED_CONFIG_RELWITHDEBINFO Release
-#)
+set_target_properties(benchmark::benchmark PROPERTIES
+	MAP_IMPORTED_CONFIG_MINSIZEREL Release
+	MAP_IMPORTED_CONFIG_RELWITHDEBINFO Release
+)
 
-target_link_libraries(LUTBenchmark PRIVATE benchmark::benchmark benchmark::benchmark_main)
+target_link_libraries(LUTBenchmark PRIVATE benchmark::benchmark)
+#benchmark::benchmark_main)
