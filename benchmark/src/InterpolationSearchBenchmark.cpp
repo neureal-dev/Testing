@@ -3,6 +3,7 @@
 #include <iostream>
 #include <vector>
 #include <array>
+#include <memory>
 
 #include "InterpolationSearch.hpp"
 #include "SearchStorageFixture.hpp"
