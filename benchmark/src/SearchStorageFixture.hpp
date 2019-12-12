@@ -47,9 +47,13 @@ struct SearchStorageFixture : benchmark::Fixture {
 
             tmp.erase(std::unique(std::begin(tmp), std::end(tmp)), std::end(tmp));
 
-            for (auto s : tmp) {
-                records_.emplace_back(s);
-            }
+            std::transform(
+                    std::begin(tmp),
+                    std::end(tmp),
+                    std::back_inserter(records_),
+                    [](auto i) -> StorageType::value_type {
+                        return StorageType::value_type(i);
+                    });
 
             benchmark::ClobberMemory();
         }

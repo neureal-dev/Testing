@@ -3,7 +3,7 @@
 #include <algorithm>
 #include <array>
 #include <memory>
-#include <string.h>
+#include <vector>
 
 namespace mtl {
 
@@ -14,28 +14,14 @@ public:
     using pointer_type = typename std::add_pointer<T>::type;
     using reference_type = typename std::reference_wrapper<T>::type;
     using leaf_type = PersistentVector<T, W, N - 1>;
-    //using storage_type = std::array<leaf_type, W>;
     using storage_type = std::array<std::unique_ptr<leaf_type>, 0x1 << W>;
 
     void addNode(uint32_t id, pointer_type element)
     {
-        /*/
-        if (node_ptrs == nullptr) {
-            node_ptrs = new char[1024 * 1024 * 1024];
-            memset(node_ptrs, '\0', 1024 * 1024 * 1024);
-            node_ptrss = node_ptrs;
-            list.nodes.fill(nullptr);
-        }
-        /*/
         size_t ref_id = getReferenceId(id);
         if (!leafs_[ref_id]) {
-            //            nodes++;
             leafs_[ref_id] = std::make_unique<value_type>();
-            //list.nodes[ref_id] = new (node_ptrss) type();
-            //node_ptrss += sizeof(type);
-            //list.nodes[ref_id]->list.nodes.fill(nullptr);
         }
-        //*/
         leafs_[ref_id]->addNode(id, element);
     }
 
@@ -46,10 +32,20 @@ public:
         if (!leafs_[ref_id]) {
             leafs_[ref_id] = std::make_unique<leaf_type>();
         }
-        return leafs_[ref_id]->emplace_back(id, args...);
+        return leafs_[ref_id]->emplace_back(id, std::forward<Args>(args)...);
     }
 
-    pointer_type getNode(uint32_t id) const
+    void push_back(value_type&& value)
+    {
+        emplace_back(value.id_, std::move(value));
+    }
+
+    void push_back(const value_type& value)
+    {
+        emplace_back(value.id_, value);
+    }
+
+    [[nodiscard]] pointer_type getNode(uint32_t id) const
     {
         auto& node = leafs_[getReferenceId(id)];
         return node ? node->getNode(id) : nullptr;
@@ -65,7 +61,7 @@ public:
     }
 
 public:
-    inline size_t getReferenceId(uint32_t id) const
+    [[nodiscard]] static inline size_t getReferenceId(uint32_t id)
     {
         constexpr uint64_t xoffset = W * (N - 1);
         constexpr uint64_t xbits = (0x1 << W) - 1;
@@ -82,16 +78,14 @@ public:
     using type = T;
     using pointer_type = typename std::add_pointer<T>::type;
     using reference_type = typename std::reference_wrapper<T>::type;
-    //using storage_type = std::array<pointer_type, W>;
     using storage_type = std::array<std::unique_ptr<type>, 0x1 << W>;
-    //using leaf_type = or<T, W, N - 1>;
 
     void addNode(uint32_t id, pointer_type element)
     {
         leafs_[getReferenceId(id)] = element;
     }
 
-    pointer_type getNode(uint32_t id) const
+    [[nodiscard]] pointer_type getNode(uint32_t id) const
     {
         return leafs_[getReferenceId(id)].get();
     }
@@ -99,12 +93,19 @@ public:
     template <class... Args>
     reference_type emplace_back(uint32_t id, Args&&... args)
     {
-        leafs_[getReferenceId(id)] = std::make_unique<T>(id, args...);
+        leafs_[getReferenceId(id)] = std::make_unique<T>(std::forward<Args>(args)...);
+        return *leafs_[getReferenceId(id)].get();
+    }
+
+    template <uint32_t>
+    reference_type emplace_back(uint32_t id)
+    {
+        leafs_[getReferenceId(id)] = std::make_unique<T>(id);
         return *leafs_[getReferenceId(id)].get();
     }
 
 private:
-    inline size_t getReferenceId(uint32_t id) const
+    [[nodiscard]] static inline size_t getReferenceId(uint32_t id)
     {
         constexpr size_t xbits = ((0x1 << W) - 1);
 

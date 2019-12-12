@@ -4,14 +4,14 @@
 
 #include <algorithm>
 #include <array>
+#include <cstring>
 #include <iterator>
+#include <memory>
 #include <omp.h>
 #include <random>
 #include <utility>
 #include <variant>
-#include <memory>
 #include <vector>
-#include <string.h>
 
 struct A {
     explicit A(uint32_t id)
@@ -68,7 +68,7 @@ public:
         list.nodes[ref_id]->addNode(id, element);
     }
 
-    T* getNode(uint32_t id) const
+    [[nodiscard]] T * getNode(uint32_t id) const
     {
         //constexpr uint64_t xoffset = W * (N - 1);
         //std::cout << node_ptrss << nodes << std::endl;
@@ -82,7 +82,7 @@ public:
     }
 
 public:
-    inline size_t getReferenceId(uint32_t id) const
+    [[nodiscard]] inline size_t getReferenceId(uint32_t id) const
     {
         constexpr uint64_t xoffset = W * (N - 1);
         constexpr uint64_t xbits = (0x1 << W) - 1;
@@ -105,14 +105,14 @@ public:
         list.nodes[getReferenceId(id)] = element;
     }
 
-    type getNode(uint32_t id) const
+    [[nodiscard]] type getNode(uint32_t id) const
     {
         return list.nodes[getReferenceId(id)];
     }
 
     //private:
 
-    inline auto
+    [[nodiscard]] inline auto
     getReferenceId(uint32_t id) const
             -> size_t
     {
