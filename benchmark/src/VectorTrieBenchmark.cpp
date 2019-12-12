@@ -46,7 +46,7 @@ BENCHMARK_REGISTER_F(SearchOptimization, RBTrie)
         ->RangeMultiplier(0xF + 1)
         ->Ranges({{0xF + 1, 0xFFFFFF + 1}, {0, 2}})
         ->Complexity()
-        ->MeasureProcessCPUTime()
+        //->MeasureProcessCPUTime()
         ->Threads(6);
 
 } // namespace

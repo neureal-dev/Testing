@@ -51,8 +51,8 @@ struct SearchStorageFixture : benchmark::Fixture {
                     std::begin(tmp),
                     std::end(tmp),
                     std::back_inserter(records_),
-                    [](auto i) -> StorageType::value_type {
-                        return StorageType::value_type(i);
+                    [](auto i) -> typename StorageType::value_type {
+                        return typename StorageType::value_type(i);
                     });
 
             benchmark::ClobberMemory();
