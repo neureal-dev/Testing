@@ -101,7 +101,7 @@ public:
 
     void addNode(uint32_t id, type element)
     {
-        nodes++;
+        //nodes++;
         list.nodes[getReferenceId(id)] = element;
     }
 
@@ -148,6 +148,7 @@ constexpr void ignore(const T&) {}
 rblist<A, 2, 16> glst;
 
 struct VectorSearchFixture : benchmark::Fixture {
+
     void SetUp(const ::benchmark::State& state) final
     {
         if (state.thread_index == 0) {
@@ -208,7 +209,7 @@ struct VectorSearchFixture : benchmark::Fixture {
     void TearDown(const ::benchmark::State& state) final
     {
         if (state.thread_index == 0) {
-            //glst.release();
+            glst.release();
             delete[] node_ptrs;
             node_ptrs = nullptr;
             nodes = 0;
@@ -529,7 +530,7 @@ BENCHMARK_REGISTER_F(VectorSearchFixture, RBTrie)
         ->RangeMultiplier(0xF + 1)
         ->Ranges({{0xF + 1, 0xFFFFFF + 1}, {0, 2}})
         ->Complexity()
-        //->MeasureProcessCPUTime()
+        ->MeasureProcessCPUTime()
         ->Threads(1);
 
 BENCHMARK_DEFINE_F(VectorSearchFixture, InterpolationIt)
@@ -723,4 +724,4 @@ BENCHMARK_REGISTER_F(VectorSearchFixture, std_partition_point)
         //->MeasureProcessCPUTime()
         ->Threads(6);
 
-BENCHMARK_MAIN()
+BENCHMARK_MAIN();

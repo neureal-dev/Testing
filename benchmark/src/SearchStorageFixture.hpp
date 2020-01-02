@@ -1,6 +1,37 @@
 #include <algorithm>
+#include <array>
 #include <random>
 #include <variant>
+
+struct A {
+    explicit A(uint32_t id)
+            : id_(id), id1_{}, id2_{}, id4_{}
+    {
+    }
+
+    [[nodiscard]] uint32_t GetId() const noexcept { return id_; }
+
+    uint32_t id_;
+    uint64_t id1_;
+    uint64_t id2_;
+    std::array<uint64_t, 3> id4_;
+};
+
+struct Comp {
+
+    inline bool operator()(const A* s, uint32_t i) const noexcept { return s->GetId() < i; }
+
+    inline bool operator()(uint32_t i, const A* s) const noexcept { return i < s->GetId(); }
+
+    inline bool operator()(const A& s, uint32_t i) const noexcept { return s.GetId() < i; }
+
+    inline bool operator()(uint32_t i, const A& s) const noexcept { return i < s.GetId(); }
+
+    inline bool operator()(const std::unique_ptr<A>& s, uint32_t i) const noexcept { return s->GetId() < i; }
+
+    inline bool operator()(uint32_t i, const std::unique_ptr<A>& s) const noexcept { return i < s->GetId(); }
+};
+
 
 template <typename StorageType>
 struct SearchStorageFixture : benchmark::Fixture {
@@ -64,7 +95,7 @@ struct SearchStorageFixture : benchmark::Fixture {
         if (state.thread_index == 0) {
             records_.clear();
             searches_.clear();
-            //records_.shrink_to_fit();
+            records_.shrink_to_fit();
             searches_.shrink_to_fit();
             benchmark::ClobberMemory();
         }

@@ -9,7 +9,7 @@ file(GLOB_RECURSE benchmark_files CONFIGURE_DEPENDS src/*.cpp)
 add_executable(testing_benchmark main.cpp ${benchmark_files})
 
 if (MSVC)
-	target_compile_options(testing_benchmark PRIVATE /Oy- /WX)
+	target_compile_options(testing_benchmark PRIVATE /Oy- /Zi)
 else()
 	#flags for clang not clang-cl
 	target_compile_options(testing_benchmark PRIVATE -fno-omit-frame-pointer)
