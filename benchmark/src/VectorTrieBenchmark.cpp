@@ -10,7 +10,7 @@ namespace {
 template <class T>
 constexpr void ignore(const T&) {}
 
-using SearchOptimization = SearchStorageFixture<mtl::PersistentVector<A, 17, 0>>;
+using SearchOptimization = SearchStorageFixture<mtl::PersistentVector<A, 4, 8>>;
 
 BENCHMARK_DEFINE_F(SearchOptimization, RBTrie)
 (benchmark::State& state)
@@ -18,13 +18,18 @@ BENCHMARK_DEFINE_F(SearchOptimization, RBTrie)
     uint64_t sum{}, itr{};
     for (auto _ : state) {
         ignore(_);
+        /*
         int s = 0;
-        for (auto itr = records_.leafs_.begin(); itr != records_.leafs_.end(); ++itr) {
-           // std::cout << (*itr).id_ << std::endl;
-            if (*itr)
-            s += (*itr)->id_;
+       
+        for (auto itr = records_.begin(); itr != records_.end(); ++itr) {
+
+             //std::cout << (*itr).id_ << std::endl;
+            //if (*itr)
+                benchmark::DoNotOptimize(s += itr->id_);
             //s +=;
         }
+        */
+        //std::cout << s << std::endl;
         /*
         for (auto i = 0; i < std::numeric_limits<int>::max(); i++) {
             auto j = records_.getNode(i);
@@ -33,7 +38,7 @@ BENCHMARK_DEFINE_F(SearchOptimization, RBTrie)
         }
         */
         //std::cout << s << std::endl;
-        /*
+        
 
         auto rid = searches_[(searches_.size() - ++itr) % searches_.size()];
         auto rec = records_.getNode(rid);
@@ -42,13 +47,13 @@ BENCHMARK_DEFINE_F(SearchOptimization, RBTrie)
         } else {
             std::cout << "record not found error" << std::endl;
         }
-        */
+        
     }
 }
 
 BENCHMARK_REGISTER_F(SearchOptimization, RBTrie)
-        ->RangeMultiplier(0xFFFF + 1)
-        ->Ranges({{0xFF + 1, 0xFF + 1}, {0, 2}})
+        ->RangeMultiplier(0xF + 1)
+        ->Ranges({{0xFF + 1, 0xFFFFFF + 1}, {0, 2}})
         ->Complexity()
         ->MeasureProcessCPUTime()
         ->Threads(1);

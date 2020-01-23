@@ -57,11 +57,14 @@ BENCHMARK_DEFINE_F(InterpolationSearch, Pure)
     uint64_t sum{}, itr{};
     for (auto _ : state) {
         ignore(_);
+        /*
         int s = 0;
         for (auto itr = records_.begin(); itr != records_.end(); ++itr) {
-            s += itr->id_;
+            benchmark::DoNotOptimize(s += itr->id_);
         }
-        /*
+        //std::cout << s << std::endl;
+        */
+        
         auto rid = searches_[(searches_.size() - ++itr) % searches_.size()];
         auto low = mtl::InterpolationSearch(
                 std::cbegin(records_),
@@ -83,15 +86,15 @@ BENCHMARK_DEFINE_F(InterpolationSearch, Pure)
         } else {
             std::cout << "not found error" << std::endl;
         }
-        */
+        
     }
 }
-/*
+
 BENCHMARK_REGISTER_F(InterpolationSearch, Pure)
         ->RangeMultiplier(0xF + 1)
-        ->Ranges({{0xF + 1, 0xFFFFFF + 1}, {0, 2}})
+        ->Ranges({{0xFF + 1, 0xFFFFFF + 1}, {0, 2}})
         ->Complexity()
         ->MeasureProcessCPUTime()
         ->Threads(1);
-*/
+        
 } // namespace
