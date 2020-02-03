@@ -90,11 +90,11 @@ BENCHMARK_DEFINE_F(InterpolationSearch, Pure)
     }
 }
 
-BENCHMARK_REGISTER_F(InterpolationSearch, Pure)
-        ->RangeMultiplier(0xF + 1)
-        ->Ranges({{0xFF + 1, 0xFFFFFF + 1}, {0, 2}})
-        ->Complexity()
-        ->MeasureProcessCPUTime()
-        ->Threads(1);
+//BENCHMARK_REGISTER_F(InterpolationSearch, Pure)
+//        ->RangeMultiplier(0xF + 1)
+//        ->Ranges({{0xFF + 1, 0xFFFFFF + 1}, {0, 2}})
+//        ->Complexity()
+//        ->MeasureProcessCPUTime()
+//        ->Threads(1);
         
 } // namespace
