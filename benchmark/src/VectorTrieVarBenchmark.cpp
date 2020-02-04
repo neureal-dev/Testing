@@ -45,7 +45,7 @@ BENCHMARK_DEFINE_F(SearchOptimization, RBTrieVar)
         if (rec) {
             benchmark::DoNotOptimize(sum += rec->id_);
         } else {
-            //std::cout << "record not found error" << std::endl;
+            std::cout << "record not found error" << std::endl;
         }
         
     }

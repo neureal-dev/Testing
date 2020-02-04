@@ -219,7 +219,7 @@ public:
     void shrink_to_fit() {}
 
 public:
-    [[nodiscard]] static inline size_t getReferenceId(uint32_t id)
+    [[nodiscard]] static constexpr size_t getReferenceId(uint32_t id)
     {
         constexpr uint64_t xoffset = W * (N - 1);
         constexpr uint64_t xbits = (0x1 << W) - 1;
